@@ -1,0 +1,27 @@
+# Dependencies
+.dart_tool/
+.packages
+.pub/
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# macOS
+.DS_Store
+*.dmg
+
+# Windows
+Thumbs.db
+
+# Secrets - DON'T COMMIT THESE
+android/app/google-services.json
+
+# Build artifacts
+*.apk
+*.aab
+*.ipa

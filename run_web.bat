@@ -1,0 +1,3 @@
+@echo off
+echo Menjalankan Aplikasi di Chrome...
+flutter run -d chrome

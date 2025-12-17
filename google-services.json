@@ -1,0 +1,38 @@
+{
+    "project_info": {
+        "project_number": "642856781888",
+        "project_id": "diskusi-bisnis",
+        "storage_bucket": "diskusi-bisnis.firebasestorage.app"
+    },
+    "client": [
+        {
+            "client_info": {
+                "mobilesdk_app_id": "1:642856781888:android:38f07ab8f8f886c5c5f7a5",
+                "android_client_info": {
+                    "package_name": "diskusibisnis.id"
+                }
+            },
+            "oauth_client": [
+                {
+                    "client_id": "642856781888-ns17dsmv6orj4l6josjh1ou23uuerjdr.apps.googleusercontent.com",
+                    "client_type": 1,
+                    "android_info": {
+                        "package_name": "diskusibisnis.id",
+                        "certificate_hash": "9cd63c3f46d56a107ad0b919253e7e28bf86f647"
+                    }
+                }
+            ],
+            "api_key": [
+                {
+                    "current_key": "AIzaSyDdFMEWF8M_RzQR8nmrT4LLDoScVs76rLE"
+                }
+            ],
+            "services": {
+                "appinvite_service": {
+                    "other_platform_oauth_client": []
+                }
+            }
+        }
+    ],
+    "configuration_version": "1"
+}

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- TODO: Replace with your actual Google Client ID from Google Cloud Console -->
+    <!-- This is vital for Google Sign-In to work on Android -->
+    <string name="default_web_client_id">1032934894184-nim57vbhub28i9gi4ulejnu44534rs3u.apps.googleusercontent.com</string>
+</resources>
