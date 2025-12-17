@@ -193,10 +193,10 @@ class _UsersListScreenState extends State<UsersListScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
               decoration: BoxDecoration(
-                  color: const Color(0xFFF1F5F9),
+                  color: _getRoleBgColor(user.role),
                   borderRadius: BorderRadius.circular(4)),
-              child: const Text('Anggota',
-                  style: TextStyle(fontSize: 10, color: Color(0xFF64748B))),
+              child: Text(_getRoleLabel(user.role),
+                  style: TextStyle(fontSize: 10, color: _getRoleTextColor(user.role), fontWeight: FontWeight.w500)),
             ),
             const SizedBox(height: 12),
             Container(
@@ -246,5 +246,38 @@ class _UsersListScreenState extends State<UsersListScreen> {
         ],
       ),
     );
+  }
+
+  String _getRoleLabel(String role) {
+    switch (role.toLowerCase()) {
+      case 'admin':
+        return 'Admin';
+      case 'moderator':
+        return 'Moderator';
+      default:
+        return 'Anggota';
+    }
+  }
+
+  Color _getRoleBgColor(String role) {
+    switch (role.toLowerCase()) {
+      case 'admin':
+        return const Color(0xFFFEE2E2); // Red 100
+      case 'moderator':
+        return const Color(0xFFFEF3C7); // Amber 100
+      default:
+        return const Color(0xFFF1F5F9); // Slate 100
+    }
+  }
+
+  Color _getRoleTextColor(String role) {
+    switch (role.toLowerCase()) {
+      case 'admin':
+        return const Color(0xFFDC2626); // Red 600
+      case 'moderator':
+        return const Color(0xFFD97706); // Amber 600
+      default:
+        return const Color(0xFF64748B); // Slate 500
+    }
   }
 }

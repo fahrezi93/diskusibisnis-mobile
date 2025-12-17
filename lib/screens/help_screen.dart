@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'create_ticket_screen.dart';
 
 class HelpScreen extends StatelessWidget {
@@ -253,7 +254,17 @@ class HelpScreen extends StatelessWidget {
   }
 
   Future<void> _launchEmail(String email) async {
-    await Clipboard.setData(ClipboardData(text: email));
-    // Show snackbar to inform user
+    final Uri emailUri = Uri(
+      scheme: 'mailto',
+      path: email,
+      query: 'subject=Bantuan DiskusiBisnis',
+    );
+    
+    if (await canLaunchUrl(emailUri)) {
+      await launchUrl(emailUri);
+    } else {
+      // Fallback: copy to clipboard
+      await Clipboard.setData(ClipboardData(text: email));
+    }
   }
 }

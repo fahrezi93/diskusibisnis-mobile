@@ -21,9 +21,9 @@ class ReputationBadge extends StatelessWidget {
   });
 
   ReputationTier get _tier {
-    if (reputationPoints >= 1000) return ReputationTier.legend;
-    if (reputationPoints >= 500) return ReputationTier.master;
-    if (reputationPoints >= 100) return ReputationTier.expert;
+    if (reputationPoints >= 5000) return ReputationTier.legend;
+    if (reputationPoints >= 1000) return ReputationTier.master;
+    if (reputationPoints >= 250) return ReputationTier.expert;
     return ReputationTier.newbie;
   }
 
@@ -162,7 +162,7 @@ class NextLevelInfo {
 }
 
 NextLevelInfo? getNextLevel(int points) {
-  const levels = [100, 500, 1000];
+  const levels = [250, 1000, 5000];
   const levelNames = ['Expert', 'Master', 'Legend'];
 
   for (int i = 0; i < levels.length; i++) {
@@ -186,9 +186,9 @@ class ReputationProgress extends StatelessWidget {
   const ReputationProgress({super.key, required this.reputationPoints});
 
   ReputationTier get _tier {
-    if (reputationPoints >= 1000) return ReputationTier.legend;
-    if (reputationPoints >= 500) return ReputationTier.master;
-    if (reputationPoints >= 100) return ReputationTier.expert;
+    if (reputationPoints >= 5000) return ReputationTier.legend;
+    if (reputationPoints >= 1000) return ReputationTier.master;
+    if (reputationPoints >= 250) return ReputationTier.expert;
     return ReputationTier.newbie;
   }
 

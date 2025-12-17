@@ -19,19 +19,7 @@ class _AboutScreenState extends State<AboutScreen> {
   @override
   void initState() {
     super.initState();
-    _loadPackageInfo();
-  }
-
-  Future<void> _loadPackageInfo() async {
-    try {
-      final packageInfo = await PackageInfo.fromPlatform();
-      setState(() {
-        _version = packageInfo.version;
-        _buildNumber = packageInfo.buildNumber;
-      });
-    } catch (e) {
-      // Use default values if package info fails
-    }
+    // Don't load package info, use fixed version for pre-release
   }
 
   @override
@@ -51,29 +39,28 @@ class _AboutScreenState extends State<AboutScreen> {
         padding: const EdgeInsets.all(24),
         child: Column(
           children: [
-            // App Logo
+            // App Logo - Use actual DiskusiBisnis logo
             Container(
               width: 100,
               height: 100,
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF059669), Color(0xFF10B981)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
                 borderRadius: BorderRadius.circular(24),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFF059669).withOpacity(0.3),
+                    color: const Color(0xFF059669).withOpacity(0.2),
                     blurRadius: 20,
                     offset: const Offset(0, 10),
                   ),
                 ],
               ),
-              child: const Icon(
-                LucideIcons.messageSquare,
-                size: 50,
-                color: Colors.white,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(24),
+                child: Image.asset(
+                  'assets/images/logo.png',
+                  width: 100,
+                  height: 100,
+                  fit: BoxFit.cover,
+                ),
               ),
             ),
             const SizedBox(height: 24),
@@ -90,9 +77,9 @@ class _AboutScreenState extends State<AboutScreen> {
             const SizedBox(height: 8),
 
             // Version
-            Text(
-              'Versi $_version (Build $_buildNumber)',
-              style: const TextStyle(
+            const Text(
+              'Versi 1.0.0',
+              style: TextStyle(
                 fontSize: 14,
                 color: Color(0xFF64748B),
               ),

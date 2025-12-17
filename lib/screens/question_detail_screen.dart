@@ -7,7 +7,9 @@ import '../services/auth_service.dart';
 import '../utils/avatar_helper.dart';
 import '../widgets/rich_content_text.dart';
 import 'profile_screen.dart';
+import 'tag_detail_screen.dart';
 import '../models/user_profile.dart';
+import '../models/tag.dart' as tag_model;
 import '../widgets/comment_section.dart';
 import '../widgets/vote_widget.dart';
 
@@ -942,20 +944,36 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
               spacing: 8,
               runSpacing: 8,
               children: tags.map<Widget>((tag) {
-                return Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFECFDF5),
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: const Color(0xFFD1FAE5)),
-                  ),
-                  child: Text(
-                    tag['name'] ?? '',
-                    style: const TextStyle(
-                      color: Color(0xFF059669),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
+                return GestureDetector(
+                  onTap: () {
+                    final topicTag = tag_model.TopicTag(
+                      id: tag['id']?.toString() ?? '',
+                      name: tag['name'] ?? '',
+                      slug: tag['slug'] ?? tag['name'] ?? '',
+                      count: 0,
+                    );
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => TagDetailScreen(tag: topicTag),
+                      ),
+                    );
+                  },
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFECFDF5),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: const Color(0xFFD1FAE5)),
+                    ),
+                    child: Text(
+                      tag['name'] ?? '',
+                      style: const TextStyle(
+                        color: Color(0xFF059669),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ),
                 );

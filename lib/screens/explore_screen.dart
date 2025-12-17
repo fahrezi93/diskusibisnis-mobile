@@ -108,8 +108,8 @@ class ExploreScreen extends StatelessWidget {
                           'Komunitas',
                           'Gabung grup diskusi',
                           LucideIcons.users,
-                          const Color(0xFF2563EB),
-                          const Color(0xFFEFF6FF),
+                          const Color(0xFF059669),
+                          const Color(0xFFECFDF5),
                           () => Navigator.push(
                               context,
                               MaterialPageRoute(
@@ -119,19 +119,19 @@ class ExploreScreen extends StatelessWidget {
                           'Topik / Tag',
                           'Cari kategori',
                           LucideIcons.hash,
-                          const Color(0xFF9333EA),
-                          const Color(0xFFFAF5FF),
+                          const Color(0xFF059669),
+                          const Color(0xFFECFDF5),
                           () => Navigator.push(
                               context,
                               MaterialPageRoute(
                                   builder: (_) => const TagsScreen())),
                         ),
                         _buildMenuCard(
-                          'Leaderboard',
+                          'Reputasi',
                           'Member teraktif',
                           LucideIcons.trophy,
-                          const Color(0xFFD97706),
-                          const Color(0xFFFFFBEB),
+                          const Color(0xFF059669),
+                          const Color(0xFFECFDF5),
                           () async {
                             final authService = AuthService();
                             await authService.init();
@@ -149,8 +149,8 @@ class ExploreScreen extends StatelessWidget {
                           'Pengguna',
                           'Cari member lain',
                           LucideIcons.user,
-                          const Color(0xFFE11D48),
-                          const Color(0xFFFFF1F2),
+                          const Color(0xFF059669),
+                          const Color(0xFFECFDF5),
                           () => Navigator.push(
                               context,
                               MaterialPageRoute(
@@ -206,8 +206,8 @@ class ExploreScreen extends StatelessWidget {
                       'Belum Terjawab',
                       'Bantu jawab pertanyaan',
                       LucideIcons.helpCircle,
-                      const Color(0xFFEA580C),
-                      const Color(0xFFFFEDD5),
+                      const Color(0xFF059669),
+                      const Color(0xFFECFDF5),
                       () => Navigator.push(
                           context,
                           MaterialPageRoute(
@@ -219,8 +219,8 @@ class ExploreScreen extends StatelessWidget {
                       'Disimpan',
                       'Koleksi diskusi Anda',
                       LucideIcons.bookmark,
-                      const Color(0xFF0EA5E9),
-                      const Color(0xFFE0F2FE),
+                      const Color(0xFF059669),
+                      const Color(0xFFECFDF5),
                       () => Navigator.push(
                           context,
                           MaterialPageRoute(
@@ -231,8 +231,8 @@ class ExploreScreen extends StatelessWidget {
                       'Bantuan / CS',
                       'Hubungi dukungan',
                       LucideIcons.mail,
-                      const Color(0xFF475569),
-                      const Color(0xFFF1F5F9),
+                      const Color(0xFF059669),
+                      const Color(0xFFECFDF5),
                       () => Navigator.push(
                           context,
                           MaterialPageRoute(

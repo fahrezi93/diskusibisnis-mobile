@@ -12,6 +12,7 @@ class UserProfile {
   final bool isVerified;
   final bool hasPassword;
   final String? authProvider; // 'google' or 'email'
+  final String role; // 'admin', 'moderator', 'user'
 
   UserProfile({
     required this.id,
@@ -25,6 +26,7 @@ class UserProfile {
     required this.isVerified,
     this.hasPassword = false,
     this.authProvider,
+    this.role = 'user',
   });
 
   factory UserProfile.fromJson(Map<String, dynamic> json) {
@@ -61,6 +63,7 @@ class UserProfile {
           json['is_verified'] == true,
       hasPassword: json['hasPassword'] == true || json['has_password'] == true,
       authProvider: json['authProvider'] ?? json['auth_provider'],
+      role: json['role'] ?? 'user',
     );
   }
 }

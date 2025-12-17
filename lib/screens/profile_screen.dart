@@ -188,22 +188,22 @@ class _ProfileScreenState extends State<ProfileScreen>
                               'Reputasi',
                               '${_profile!.reputationPoints}',
                               LucideIcons.award,
-                              const Color(0xFF059669),
-                              const Color(0xFFECFDF5)),
+                              const Color(0xFFD97706),
+                              const Color(0xFFFFFBEB)),
                           const SizedBox(width: 12),
                           _buildStatCard(
                               'Tanya',
                               '${_questions.length}',
                               LucideIcons.messageSquare,
-                              const Color(0xFF2563EB),
-                              const Color(0xFFEFF6FF)),
+                              const Color(0xFF059669),
+                              const Color(0xFFECFDF5)),
                           const SizedBox(width: 12),
                           _buildStatCard(
                               'Jawab',
                               '${_answers.length}',
                               LucideIcons.checkCircle,
-                              const Color(0xFF9333EA),
-                              const Color(0xFFFAF5FF)),
+                              const Color(0xFF059669),
+                              const Color(0xFFECFDF5)),
                         ],
                       ),
 
@@ -305,12 +305,14 @@ class _ProfileScreenState extends State<ProfileScreen>
                         child: IconButton(
                           icon: const Icon(LucideIcons.settings,
                               size: 20, color: Color(0xFF0F172A)),
-                          onPressed: () {
-                            Navigator.push(
+                          onPressed: () async {
+                            await Navigator.push(
                                 context,
                                 MaterialPageRoute(
                                     builder: (context) =>
                                         const SettingsScreen()));
+                            // Refresh profile after returning from settings
+                            _loadProfileData();
                           },
                         ),
                       ),
@@ -422,7 +424,7 @@ class _ProfileScreenState extends State<ProfileScreen>
               const SizedBox(height: 16),
 
               // Bio
-              if (_profile!.bio != null)
+              if (_profile!.bio != null && _profile!.bio!.isNotEmpty)
                 Text(
                   _profile!.bio!,
                   style: const TextStyle(color: Color(0xFF475569), height: 1.5),

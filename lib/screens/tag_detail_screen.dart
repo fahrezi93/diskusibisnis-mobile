@@ -64,7 +64,7 @@ class _TagDetailScreenState extends State<TagDetailScreen> {
               ),
             ),
             Text(
-              '${widget.tag.count} pertanyaan',
+              _isLoading ? 'Memuat...' : '${_questions.length} pertanyaan',
               style: const TextStyle(
                 color: Color(0xFF64748B),
                 fontSize: 12,
