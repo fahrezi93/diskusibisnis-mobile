@@ -478,6 +478,26 @@ class ApiService {
     }
   }
 
+  Future<bool> deleteNotification(String notificationId,
+      {String? token}) async {
+    try {
+      if (token == null) return false;
+
+      final response = await http.delete(
+        Uri.parse('$baseUrl/notifications/$notificationId'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      return response.statusCode == 200;
+    } catch (e) {
+      print('Error deleteNotification: $e');
+      return false;
+    }
+  }
+
   Future<List<Community>> getCommunities() async {
     try {
       final response = await http.get(Uri.parse('$baseUrl/communities'));

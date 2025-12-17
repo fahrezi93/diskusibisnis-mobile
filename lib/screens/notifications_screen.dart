@@ -85,6 +85,50 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     }
   }
 
+  Future<void> _deleteNotification(notif.Notification notification, {bool showSnackbar = true}) async {
+    final success = await _apiService.deleteNotification(
+      notification.id,
+      token: _authService.token,
+    );
+    if (success && mounted) {
+      setState(() {
+        _notifications.removeWhere((n) => n.id == notification.id);
+      });
+      if (showSnackbar) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Notifikasi dihapus'),
+            backgroundColor: Color(0xFF059669),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+  }
+
+  void _showDeleteConfirmation(notif.Notification notification) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Hapus Notifikasi'),
+        content: const Text('Apakah Anda yakin ingin menghapus notifikasi ini?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Batal'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _deleteNotification(notification);
+            },
+            child: const Text('Hapus', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -132,67 +176,116 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   Widget _buildNotificationItem(notif.Notification notification) {
-    return InkWell(
-      onTap: () => _handleNotificationTap(notification),
-      child: Container(
-        color: notification.isRead
-            ? Colors.white
-            : const Color(0xFFECFDF5).withValues(alpha: 0.4),
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildIcon(notification.type),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        notification.title,
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 14,
-                          color: notification.isRead
-                              ? const Color(0xFF475569)
-                              : const Color(0xFF0F172A),
-                        ),
-                      ),
-                      Row(
-                        children: [
-                          Text(
-                            _formatTimeAgo(notification.createdAt),
-                            style: const TextStyle(
-                                fontSize: 10, color: Color(0xFF94A3B8)),
-                          ),
-                          if (!notification.isRead)
-                            Container(
-                              margin: const EdgeInsets.only(left: 8),
-                              width: 8,
-                              height: 8,
-                              decoration: const BoxDecoration(
-                                color: Color(0xFF059669),
-                                shape: BoxShape.circle,
-                              ),
-                            ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  _buildRichMessage(
-                    notification.message,
-                    notification.isRead
-                        ? const Color(0xFF64748B)
-                        : const Color(0xFF334155),
-                  ),
-                ],
+    return Dismissible(
+      key: Key(notification.id),
+      direction: DismissDirection.endToStart,
+      background: Container(
+        color: Colors.red,
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 20),
+        child: const Icon(LucideIcons.trash2, color: Colors.white),
+      ),
+      confirmDismiss: (direction) async {
+        return await showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Hapus Notifikasi'),
+            content: const Text('Apakah Anda yakin ingin menghapus notifikasi ini?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Batal'),
               ),
-            ),
-          ],
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Hapus', style: TextStyle(color: Colors.red)),
+              ),
+            ],
+          ),
+        );
+      },
+      onDismissed: (direction) {
+        // Remove from list immediately (synchronously) to prevent "still part of tree" error
+        setState(() {
+          _notifications.removeWhere((n) => n.id == notification.id);
+        });
+        // Then call API in background
+        _apiService.deleteNotification(notification.id, token: _authService.token);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Notifikasi dihapus'),
+            backgroundColor: Color(0xFF059669),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      },
+      child: InkWell(
+        onTap: () => _handleNotificationTap(notification),
+        onLongPress: () => _showDeleteConfirmation(notification),
+        child: Container(
+          color: notification.isRead
+              ? Colors.white
+              : const Color(0xFFECFDF5).withValues(alpha: 0.4),
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildIcon(notification.type),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            notification.title,
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                              color: notification.isRead
+                                  ? const Color(0xFF475569)
+                                  : const Color(0xFF0F172A),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        Row(
+                          children: [
+                            Text(
+                              _formatTimeAgo(notification.createdAt),
+                              style: const TextStyle(
+                                  fontSize: 10, color: Color(0xFF94A3B8)),
+                            ),
+                            if (!notification.isRead)
+                              Container(
+                                margin: const EdgeInsets.only(left: 8),
+                                width: 8,
+                                height: 8,
+                                decoration: const BoxDecoration(
+                                  color: Color(0xFF059669),
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    _buildRichMessage(
+                      notification.message,
+                      notification.isRead
+                          ? const Color(0xFF64748B)
+                          : const Color(0xFF334155),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

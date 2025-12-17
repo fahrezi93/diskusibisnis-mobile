@@ -39,6 +39,15 @@ android {
             signingConfig = signingConfigs.getByName("debug")
         }
     }
+
+    applicationVariants.all {
+        val variant = this
+        variant.outputs.all {
+            val output = this as com.android.build.gradle.internal.api.BaseVariantOutputImpl
+            val versionName = variant.versionName
+            output.outputFileName = "diskusibisnis-v${versionName}.apk"
+        }
+    }
 }
 
 dependencies {

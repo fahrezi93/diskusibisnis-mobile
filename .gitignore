@@ -20,6 +20,10 @@ Thumbs.db
 
 # Secrets - DON'T COMMIT THESE
 android/app/google-services.json
+*.json
+!pubspec.lock
+diskusi-bisnis-firebase-adminsdk*.json
+client_secret_*.json
 
 # Build artifacts
 *.apk
