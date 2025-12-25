@@ -22,8 +22,10 @@ Thumbs.db
 android/app/google-services.json
 *.json
 !pubspec.lock
+!assets/images/*.json
 diskusi-bisnis-firebase-adminsdk*.json
 client_secret_*.json
+lib/firebase_options.dart
 
 # Build artifacts
 *.apk
