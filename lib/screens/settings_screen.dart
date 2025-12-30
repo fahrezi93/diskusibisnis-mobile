@@ -700,22 +700,95 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ),
 
-            // Password - Only show for email users or to request reset
-            if (!_isGoogleUser)
-              _buildListTile(
-                LucideIcons.lock,
-                'Password',
-                subtitle: '••••••••',
-                showArrow: true,
-                onTap: _handleRequestPasswordReset,
-              )
-            else
-              _buildListTile(
-                LucideIcons.info,
-                'Login dengan Google',
-                subtitle: 'Password dikelola oleh Google',
-                color: const Color(0xFF64748B),
+            // Google Account Indicator (if Google user)
+            if (_isGoogleUser)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.05),
+                            blurRadius: 4,
+                          ),
+                        ],
+                      ),
+                      // Google Logo SVG as custom painter or use image
+                      child: SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CustomPaint(
+                          painter: GoogleLogoPainter(),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Login dengan Google',
+                              style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 14,
+                                  color: Color(0xFF0F172A))),
+                          Text('Terhubung',
+                              style: TextStyle(
+                                  color: Color(0xFF059669),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500)),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFECFDF5),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            LucideIcons.check,
+                            size: 12,
+                            color: Color(0xFF059669),
+                          ),
+                          SizedBox(width: 4),
+                          Text(
+                            'Aktif',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF059669),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
+
+            // Password - Show for all users (email users can change, Google users can set optional)
+            _buildListTile(
+              LucideIcons.lock,
+              'Password',
+              subtitle: _isGoogleUser && !(_user?.hasPassword ?? false)
+                  ? 'Belum diset (opsional)'
+                  : '••••••••',
+              showArrow: true,
+              onTap: _handleRequestPasswordReset,
+            ),
 
             // Logout Button
             InkWell(
@@ -994,4 +1067,86 @@ class _SettingsScreenState extends State<SettingsScreen> {
       borderRadius: 40, // Circular for settings page
     );
   }
+}
+
+// Custom Painter for Google Logo
+class GoogleLogoPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final double scale = size.width / 24;
+
+    // Blue
+    final bluePaint = Paint()..color = const Color(0xFF4285F4);
+    final bluePath = Path()
+      ..moveTo(22.56 * scale, 12.25 * scale)
+      ..cubicTo(22.56 * scale, 11.47 * scale, 22.49 * scale, 10.72 * scale,
+          22.36 * scale, 10 * scale)
+      ..lineTo(12 * scale, 10 * scale)
+      ..lineTo(12 * scale, 14.26 * scale)
+      ..lineTo(17.92 * scale, 14.26 * scale)
+      ..cubicTo(17.66 * scale, 15.63 * scale, 16.88 * scale, 16.79 * scale,
+          15.71 * scale, 17.57 * scale)
+      ..lineTo(15.71 * scale, 20.34 * scale)
+      ..lineTo(19.28 * scale, 20.34 * scale)
+      ..cubicTo(21.36 * scale, 18.42 * scale, 22.56 * scale, 15.6 * scale,
+          22.56 * scale, 12.25 * scale)
+      ..close();
+    canvas.drawPath(bluePath, bluePaint);
+
+    // Green
+    final greenPaint = Paint()..color = const Color(0xFF34A853);
+    final greenPath = Path()
+      ..moveTo(12 * scale, 23 * scale)
+      ..cubicTo(14.97 * scale, 23 * scale, 17.46 * scale, 22.02 * scale,
+          19.28 * scale, 20.34 * scale)
+      ..lineTo(15.71 * scale, 17.57 * scale)
+      ..cubicTo(14.73 * scale, 18.23 * scale, 13.48 * scale, 18.63 * scale,
+          12 * scale, 18.63 * scale)
+      ..cubicTo(9.14 * scale, 18.63 * scale, 6.71 * scale, 16.7 * scale,
+          5.84 * scale, 14.1 * scale)
+      ..lineTo(2.18 * scale, 14.1 * scale)
+      ..lineTo(2.18 * scale, 16.94 * scale)
+      ..cubicTo(3.99 * scale, 20.53 * scale, 7.7 * scale, 23 * scale,
+          12 * scale, 23 * scale)
+      ..close();
+    canvas.drawPath(greenPath, greenPaint);
+
+    // Yellow
+    final yellowPaint = Paint()..color = const Color(0xFFFBBC05);
+    final yellowPath = Path()
+      ..moveTo(5.84 * scale, 14.09 * scale)
+      ..cubicTo(5.62 * scale, 13.43 * scale, 5.49 * scale, 12.73 * scale,
+          5.49 * scale, 12 * scale)
+      ..cubicTo(5.49 * scale, 11.27 * scale, 5.62 * scale, 10.57 * scale,
+          5.84 * scale, 9.91 * scale)
+      ..lineTo(5.84 * scale, 7.07 * scale)
+      ..lineTo(2.18 * scale, 7.07 * scale)
+      ..cubicTo(1.43 * scale, 8.55 * scale, 1 * scale, 10.22 * scale, 1 * scale,
+          12 * scale)
+      ..cubicTo(1 * scale, 13.78 * scale, 1.43 * scale, 15.45 * scale,
+          2.18 * scale, 16.93 * scale)
+      ..lineTo(5.84 * scale, 14.09 * scale)
+      ..close();
+    canvas.drawPath(yellowPath, yellowPaint);
+
+    // Red
+    final redPaint = Paint()..color = const Color(0xFFEA4335);
+    final redPath = Path()
+      ..moveTo(12 * scale, 5.38 * scale)
+      ..cubicTo(13.62 * scale, 5.38 * scale, 15.06 * scale, 5.94 * scale,
+          16.21 * scale, 7.02 * scale)
+      ..lineTo(19.36 * scale, 3.87 * scale)
+      ..cubicTo(17.45 * scale, 2.09 * scale, 14.97 * scale, 1 * scale,
+          12 * scale, 1 * scale)
+      ..cubicTo(7.7 * scale, 1 * scale, 3.99 * scale, 3.47 * scale,
+          2.18 * scale, 7.07 * scale)
+      ..lineTo(5.84 * scale, 9.91 * scale)
+      ..cubicTo(6.71 * scale, 7.31 * scale, 9.14 * scale, 5.38 * scale,
+          12 * scale, 5.38 * scale)
+      ..close();
+    canvas.drawPath(redPath, redPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
