@@ -365,7 +365,7 @@ class ExploreScreen extends StatelessWidget {
               const SizedBox(height: 16),
               const Center(
                 child: Text(
-                  '© 2025 DiskusiBisnis. Platform Q&A untuk UMKM Indonesia.',
+                  '© 2026 DiskusiBisnis. Platform Q&A untuk UMKM Indonesia.',
                   style: TextStyle(fontSize: 10, color: Color(0xFF94A3B8)),
                 ),
               ),

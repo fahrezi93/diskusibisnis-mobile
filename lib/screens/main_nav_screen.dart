@@ -13,6 +13,8 @@ import '../services/api_service.dart';
 import '../services/auth_service.dart';
 import '../services/update_service.dart';
 import '../services/fcm_service.dart';
+import '../services/popup_service.dart';
+import '../widgets/promo_popup.dart';
 
 class MainNavScreen extends StatefulWidget {
   const MainNavScreen({super.key});
@@ -29,6 +31,7 @@ class _MainNavScreenState extends State<MainNavScreen> {
   final AuthService _auth = AuthService();
   final UpdateService _updateService = UpdateService();
   final FCMService _fcmService = FCMService();
+  final PopupService _popupService = PopupService();
   StreamSubscription? _fcmSubscription;
 
   final List<Widget> _screens = [
@@ -45,6 +48,7 @@ class _MainNavScreenState extends State<MainNavScreen> {
     _checkNotifications();
     _checkForUpdates();
     _setupFCMListener();
+    _checkForPromoPopup(); // Check for promotional popup
 
     // Check every 30 seconds
     _notificationTimer = Timer.periodic(const Duration(seconds: 30), (_) {
@@ -108,6 +112,65 @@ class _MainNavScreenState extends State<MainNavScreen> {
           _unreadNotifications = count;
         });
       }
+    }
+  }
+
+  /// Check for promotional popup
+  Future<void> _checkForPromoPopup() async {
+    // Wait for app to settle and other dialogs to clear
+    await Future.delayed(const Duration(seconds: 3));
+    if (!mounted) return;
+
+    final popup = await _popupService.getActivePopup();
+    if (popup != null && mounted) {
+      _showPromoPopup(popup);
+    }
+  }
+
+  /// Show promotional popup dialog
+  void _showPromoPopup(PromoPopup popup) {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) => PromoPopupDialog(
+        popup: popup,
+        onDismiss: () {
+          Navigator.of(context).pop();
+          _popupService.recordPopupView(popup.id, clicked: false);
+        },
+        onTap: () {
+          Navigator.of(context).pop();
+          _popupService.recordPopupView(popup.id, clicked: true);
+          _handlePromoPopupTap(popup);
+        },
+      ),
+    );
+  }
+
+  /// Handle popup tap - navigate based on link type
+  void _handlePromoPopupTap(PromoPopup popup) {
+    if (popup.linkUrl == null) return;
+
+    switch (popup.linkType) {
+      case 'question':
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) =>
+                QuestionDetailScreen(questionId: popup.linkUrl!),
+          ),
+        );
+        break;
+      case 'community':
+        // Navigate to community by slug
+        // TODO: Implement community navigation
+        break;
+      case 'external':
+      case 'url':
+      default:
+        // Open URL in browser
+        // TODO: Implement URL launcher
+        break;
     }
   }
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../widgets/hero_section.dart';
+import '../widgets/announcement_banner.dart';
 import '../services/api_service.dart';
 import '../models/question.dart';
 import '../widgets/question_card.dart';
@@ -109,6 +110,15 @@ class _HomeScreenState extends State<HomeScreen> {
               // Hero Section
               SliverToBoxAdapter(
                 child: HeroSection(totalQuestions: _questions.length),
+              ),
+
+              // Announcement Banner
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: AnnouncementBannerWidget(showOn: 'home'),
+                ),
               ),
 
               // Sticky Filter Tabs

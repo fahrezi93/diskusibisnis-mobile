@@ -2,17 +2,18 @@
 import 'package:flutter/foundation.dart';
 
 class AppConfig {
-  static const bool forceProduction = true; // SET TO TRUE FOR PRODUCTION
+  static const bool forceProduction = false; // SET TO TRUE FOR PRODUCTION
 
   static bool get isProduction => kReleaseMode || forceProduction;
 
   // Development URLs (local network)
-  // Use 10.0.2.2 for Android Emulator, localhost for Web/iOS, or IP for physical device
-  // static const String _devApiUrl = 'http://192.168.1.9:5000/api';
-  // static const String _devBaseUrl = 'http://192.168.1.9:5000';
+  // - Android Emulator: use 10.0.2.2
+  // - Physical Device: use your computer's IP address (e.g., 192.168.1.x)
+  // - iOS Simulator/Web: can use localhost
 
-  static const String _devApiUrl = 'http://localhost:5000/api';
-  static const String _devBaseUrl = 'http://localhost:5000';
+  // For Physical Device (use computer's IP when testing on real phone)
+  static const String _devApiUrl = 'http://192.168.1.2:5000/api';
+  static const String _devBaseUrl = 'http://192.168.1.2:5000';
 
   // Production URLs (Railway)
   static const String _prodApiUrl =
