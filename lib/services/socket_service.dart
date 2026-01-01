@@ -1,5 +1,5 @@
 import 'package:socket_io_client/socket_io_client.dart' as io;
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../config/app_config.dart';
 
 class SocketService {
@@ -19,13 +19,13 @@ class SocketService {
       return;
     }
 
-    // Get token from SharedPreferences
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('auth_token');
-    
+    // Get token from FlutterSecureStorage
+    const secureStorage = FlutterSecureStorage();
+    final token = await secureStorage.read(key: 'auth_token');
+
     // Get WebSocket URL from base URL (not API URL)
     String wsUrl = AppConfig.baseUrl;
-    
+
     print('[Socket] Connecting to: $wsUrl');
 
     _socket = io.io(wsUrl, <String, dynamic>{

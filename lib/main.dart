@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'services/fcm_service.dart';
@@ -20,32 +21,43 @@ import 'screens/reset_password_screen.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Only do essential, fast initialization before runApp
   try {
-    // Initialize Firebase if not already initialized
+    // Initialize Firebase with timeout
     if (Firebase.apps.isEmpty) {
       await Firebase.initializeApp(
         options: DefaultFirebaseOptions.currentPlatform,
+      ).timeout(
+        const Duration(seconds: 5),
+        onTimeout: () {
+          debugPrint('Firebase initialization timed out');
+          throw Exception('Firebase timeout');
+        },
       );
     }
   } catch (e) {
     debugPrint('Firebase initialization failed: $e');
   }
 
-  // Initialize Supabase for avatar uploads
+  // Initialize Theme (local, should be fast)
   try {
-    await SupabaseService.initialize();
-  } catch (e) {
-    debugPrint('Supabase initialization failed: $e');
-  }
-
-  // Initialize Theme
-  try {
-    await ThemeService().init();
+    await ThemeService().init().timeout(
+      const Duration(seconds: 2),
+      onTimeout: () {
+        debugPrint('Theme initialization timed out');
+      },
+    );
   } catch (e) {
     debugPrint('Theme initialization failed: $e');
   }
 
+  // Start app immediately - defer heavy initialization
   runApp(const DiskusiBisnisApp());
+
+  // Initialize Supabase in background after app starts (non-blocking)
+  SupabaseService.initialize().catchError((e) {
+    debugPrint('Supabase initialization failed: $e');
+  });
 }
 
 class DiskusiBisnisApp extends StatefulWidget {
@@ -57,10 +69,9 @@ class DiskusiBisnisApp extends StatefulWidget {
 
 class _DiskusiBisnisAppState extends State<DiskusiBisnisApp> {
   bool _isAuthenticated = false;
-  bool _showSplash = true; // Flag untuk splash
+  bool _showSplash = true;
   final FCMService _fcmService = FCMService();
   final DeepLinkService _deepLinkService = DeepLinkService();
-
   final SocketService _socketService = SocketService();
   final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
 
@@ -71,44 +82,66 @@ class _DiskusiBisnisAppState extends State<DiskusiBisnisApp> {
   }
 
   Future<void> _initialize() async {
-    // Minimum splash duration 1.2 detik
-    final splashFuture = Future.delayed(const Duration(milliseconds: 1200));
+    debugPrint('[Init] Starting initialization...');
 
-    try {
-      await _checkAuth();
+    // Run auth check and splash timer in parallel, but with proper error handling
+    bool authCompleted = false;
 
-      // Initialize FCM if user is authenticated
-      if (_isAuthenticated) {
-        await _fcmService.initialize();
-        // Connect to WebSocket for real-time notifications
-        await _socketService.connect();
-      }
+    // Do auth check quickly (non-blocking)
+    _checkAuth().timeout(const Duration(seconds: 3)).then((_) {
+      debugPrint(
+          '[Init] Auth check completed. Authenticated: $_isAuthenticated');
+      authCompleted = true;
+    }).catchError((e) {
+      debugPrint('[Init] Auth check error: $e');
+      authCompleted = true;
+    });
 
-      // Initialize Deep Linking
-      await _deepLinkService.initialize();
+    // Wait for minimum splash duration
+    await Future.delayed(const Duration(milliseconds: 1500));
 
-      // Listen for deep links while app is running
+    // If auth check hasn't completed yet, wait a bit more
+    if (!authCompleted) {
+      await Future.delayed(const Duration(milliseconds: 500));
+    }
+
+    debugPrint('[Init] Splash timer done, hiding splash...');
+
+    // Hide splash screen - use WidgetsBinding to ensure we're in a valid state
+    if (mounted) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          setState(() {
+            _showSplash = false;
+          });
+          debugPrint('[Init] Splash hidden!');
+
+          // Do remaining initialization in background AFTER splash is hidden
+          _initializeBackgroundServices();
+        }
+      });
+    }
+  }
+
+  void _initializeBackgroundServices() {
+    debugPrint('[Init] Starting background services...');
+
+    // Initialize FCM and Socket in background (fire-and-forget)
+    if (_isAuthenticated) {
+      _fcmService.initialize();
+      _socketService.connect();
+    }
+
+    // Initialize Deep Linking in background
+    _deepLinkService.initialize().then((_) {
+      debugPrint('[Init] Deep link initialized');
       _deepLinkService.deepLinkStream.listen(_handleDeepLink);
-
-      // Wait for minimum splash duration
-      await splashFuture;
-
-      // Handle initial deep link (app opened from link)
       if (_deepLinkService.initialLink != null) {
         _handleDeepLink(_deepLinkService.initialLink!);
       }
-    } catch (e) {
-      debugPrint('Initialization failed: $e');
-      // Still wait for splash even on error
-      await splashFuture;
-    }
-
-    // Hide splash after everything is done
-    if (mounted) {
-      setState(() {
-        _showSplash = false;
-      });
-    }
+    }).catchError((e) {
+      debugPrint('[Init] Deep link error: $e');
+    });
   }
 
   void _handleDeepLink(Uri uri) {
@@ -204,8 +237,32 @@ class _DiskusiBisnisAppState extends State<DiskusiBisnisApp> {
 
   Future<void> _checkAuth() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('auth_token');
+      const secureStorage = FlutterSecureStorage();
+
+      // First, check secure storage (primary location after migration)
+      String? token = await secureStorage.read(key: 'auth_token').timeout(
+            const Duration(seconds: 2),
+            onTimeout: () => null,
+          );
+
+      // If not in secure storage, check SharedPreferences (legacy/pre-migration)
+      if (token == null) {
+        final prefs = await SharedPreferences.getInstance().timeout(
+          const Duration(seconds: 2),
+          onTimeout: () {
+            throw Exception('SharedPreferences timeout');
+          },
+        );
+        token = prefs.getString('auth_token');
+
+        // Migrate to secure storage if found in SharedPreferences
+        if (token != null) {
+          await secureStorage.write(key: 'auth_token', value: token);
+          await prefs.remove('auth_token');
+          debugPrint('[Auth] Migrated token to secure storage');
+        }
+      }
+
       if (mounted) {
         setState(() {
           _isAuthenticated = token != null;
@@ -234,7 +291,7 @@ class _DiskusiBisnisAppState extends State<DiskusiBisnisApp> {
         theme: ThemeData(
           textTheme: interTextTheme,
         ),
-        navigatorKey: _navigatorKey,
+        // Don't use navigatorKey here - it will conflict when switching to main app
         home: const _AnimatedSplashScreen(),
       );
     }

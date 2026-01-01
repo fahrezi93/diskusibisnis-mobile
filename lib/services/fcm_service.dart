@@ -1,5 +1,6 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'dart:async';
@@ -166,23 +167,25 @@ class FCMService {
 
   Future<void> _sendTokenToBackend(String token) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final authToken = prefs.getString('auth_token');
+      const secureStorage = FlutterSecureStorage();
+      final authToken = await secureStorage.read(key: 'auth_token');
 
       if (authToken == null) return;
 
-      final response = await http.post(
-        Uri.parse('${AppConfig.apiUrl}/notifications/register-token'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $authToken',
-        },
-        body: jsonEncode({
-          'fcmToken': token,
-          'deviceType': 'android', // Identifies this as mobile device
-          'deviceName': 'DiskusiBisnis Mobile App',
-        }),
-      );
+      final response = await http
+          .post(
+            Uri.parse('${AppConfig.apiUrl}/notifications/register-token'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $authToken',
+            },
+            body: jsonEncode({
+              'fcmToken': token,
+              'deviceType': 'android', // Identifies this as mobile device
+              'deviceName': 'DiskusiBisnis Mobile App',
+            }),
+          )
+          .timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
         print('FCM token sent to backend successfully (Android)');

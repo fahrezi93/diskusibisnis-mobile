@@ -23,7 +23,13 @@ class DeepLinkService {
 
     // Get initial link if app was opened with a deep link
     try {
-      _initialLink = await _appLinks.getInitialLink();
+      _initialLink = await _appLinks.getInitialLink().timeout(
+        const Duration(seconds: 2),
+        onTimeout: () {
+          debugPrint('getInitialLink timed out');
+          return null;
+        },
+      );
       if (_initialLink != null) {
         debugPrint('Initial deep link: $_initialLink');
         _deepLinkController.add(_initialLink!);
