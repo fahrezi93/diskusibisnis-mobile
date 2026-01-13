@@ -17,7 +17,8 @@ class NotificationsScreen extends StatefulWidget {
   State<NotificationsScreen> createState() => _NotificationsScreenState();
 }
 
-class _NotificationsScreenState extends State<NotificationsScreen> {
+class _NotificationsScreenState extends State<NotificationsScreen>
+    with WidgetsBindingObserver {
   final ApiService _apiService = ApiService();
   final AuthService _authService = AuthService();
   final SocketService _socketService = SocketService();
@@ -25,10 +26,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   bool _isLoggedIn = false;
   List<notif.Notification> _notifications = [];
   StreamSubscription? _notificationSubscription;
+  bool _hasInitialized = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _initAndLoad();
 
     // Listen for real-time notifications via FCM (background/push)
@@ -43,6 +46,16 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
     // Listen for real-time notifications via WebSocket
     _socketService.addNotificationListener(_handleNewNotification);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    // Refresh notifications when app is resumed from background
+    if (state == AppLifecycleState.resumed && _hasInitialized && _isLoggedIn) {
+      print('[NotificationsScreen] App resumed, refreshing notifications...');
+      _loadNotifications();
+    }
   }
 
   void _handleNewNotification(Map<String, dynamic> data) {
@@ -61,40 +74,82 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _notificationSubscription?.cancel();
     _socketService.removeNotificationListener(_handleNewNotification);
     super.dispose();
   }
 
   Future<void> _initAndLoad() async {
-    await _authService.init();
-    setState(() {
-      _isLoggedIn = _authService.isAuthenticated;
-    });
-    if (_isLoggedIn) {
-      await _loadNotifications();
-    } else {
-      setState(() => _isLoading = false);
+    print('[NotificationsScreen] _initAndLoad started');
+
+    try {
+      await _authService.init();
+
+      final isAuth = _authService.isAuthenticated;
+      final token = _authService.token;
+
+      print(
+          '[NotificationsScreen] Auth status: isAuthenticated=$isAuth, token=${token != null ? "present (${token.length} chars)" : "NULL"}');
+
+      if (mounted) {
+        setState(() {
+          _isLoggedIn = isAuth;
+          _hasInitialized = true;
+        });
+      }
+
+      if (isAuth && token != null) {
+        await _loadNotifications();
+      } else {
+        print(
+            '[NotificationsScreen] Not authenticated or token is null, skipping notification load');
+        if (mounted) setState(() => _isLoading = false);
+      }
+    } catch (e) {
+      print('[NotificationsScreen] Error in _initAndLoad: $e');
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _hasInitialized = true;
+        });
+      }
     }
   }
 
   Future<void> _loadNotifications() async {
+    print('[NotificationsScreen] _loadNotifications started');
+
+    // Check token before making request
+    final token = _authService.token;
+    if (token == null) {
+      print(
+          '[NotificationsScreen] ERROR: Token is null, cannot load notifications');
+      if (mounted) setState(() => _isLoading = false);
+      return;
+    }
+
+    print('[NotificationsScreen] Token present, making API request...');
+
     // Only show loading spinner on initial load, not background refresh
     if (_notifications.isEmpty) {
       setState(() => _isLoading = true);
     }
 
     try {
-      final data =
-          await _apiService.getNotifications(token: _authService.token);
+      final data = await _apiService.getNotifications(token: token);
+      print('[NotificationsScreen] API returned ${data.length} notifications');
+
       if (mounted) {
         setState(() {
           _notifications = data;
           _isLoading = false;
         });
+        print(
+            '[NotificationsScreen] State updated with ${_notifications.length} notifications');
       }
     } catch (e) {
-      print('Error loading notifications: $e');
+      print('[NotificationsScreen] Error loading notifications: $e');
       if (mounted) setState(() => _isLoading = false);
     }
   }

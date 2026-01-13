@@ -424,10 +424,18 @@ class ApiService {
   }
 
   Future<List<notif.Notification>> getNotifications({String? token}) async {
+    print('[ApiService] getNotifications called');
+
     try {
       if (token == null) {
+        print(
+            '[ApiService] getNotifications: Token is NULL, returning empty list');
         return [];
       }
+
+      print(
+          '[ApiService] getNotifications: Making request to $baseUrl/notifications');
+      print('[ApiService] getNotifications: Token length: ${token.length}');
 
       final response = await http.get(
         Uri.parse('$baseUrl/notifications'),
@@ -437,32 +445,63 @@ class ApiService {
         },
       );
 
+      print(
+          '[ApiService] getNotifications: Response status: ${response.statusCode}');
+
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         List<dynamic> list = [];
+
+        print('[ApiService] getNotifications: Parsing response data...');
 
         if (data is Map && data.containsKey('data')) {
           final innerData = data['data'];
           if (innerData is Map && innerData.containsKey('notifications')) {
             list = innerData['notifications'];
+            print(
+                '[ApiService] getNotifications: Found ${list.length} notifications in data.notifications');
           } else if (innerData is List) {
             list = innerData;
+            print(
+                '[ApiService] getNotifications: Found ${list.length} notifications in data (list)');
+          } else {
+            print(
+                '[ApiService] getNotifications: data is Map but no notifications key. Keys: ${innerData is Map ? innerData.keys.toList() : "N/A"}');
           }
         } else if (data is Map && data.containsKey('notifications')) {
           list = data['notifications'];
+          print(
+              '[ApiService] getNotifications: Found ${list.length} notifications in root.notifications');
         } else if (data is List) {
           list = data;
+          print(
+              '[ApiService] getNotifications: Found ${list.length} notifications in root (list)');
+        } else {
+          print(
+              '[ApiService] getNotifications: Unexpected response format. Type: ${data.runtimeType}');
+          if (data is Map) {
+            print(
+                '[ApiService] getNotifications: Root keys: ${data.keys.toList()}');
+          }
         }
 
-        return list.map((json) => notif.Notification.fromJson(json)).toList();
+        final notifications =
+            list.map((json) => notif.Notification.fromJson(json)).toList();
+        print(
+            '[ApiService] getNotifications: Successfully parsed ${notifications.length} notifications');
+        return notifications;
       } else if (response.statusCode == 401 || response.statusCode == 403) {
         // Token expired or invalid
+        print(
+            '[ApiService] getNotifications: Auth error ${response.statusCode}, token may be expired');
         return [];
       } else {
+        print(
+            '[ApiService] getNotifications: Error response ${response.statusCode}: ${response.body}');
         throw Exception('Gagal mengambil notifikasi: ${response.statusCode}');
       }
     } catch (e) {
-      print('Error getNotifications: $e');
+      print('[ApiService] getNotifications ERROR: $e');
       return [];
     }
   }
