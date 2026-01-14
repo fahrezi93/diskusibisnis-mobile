@@ -8,6 +8,7 @@ import '../services/auth_service.dart';
 import '../services/fcm_service.dart'; // Import FCMService
 import '../services/socket_service.dart'; // Import SocketService
 import '../models/notification.dart' as notif;
+import '../widgets/skeleton_loading.dart';
 import 'question_detail_screen.dart';
 
 class NotificationsScreen extends StatefulWidget {
@@ -232,8 +233,10 @@ class _NotificationsScreenState extends State<NotificationsScreen>
         ],
       ),
       body: _isLoading
-          ? const Center(
-              child: CircularProgressIndicator(color: Color(0xFF059669)))
+          ? ListView.builder(
+              itemCount: 6,
+              itemBuilder: (context, index) => const NotificationItemSkeleton(),
+            )
           : !_isLoggedIn
               ? _buildLoginRequired()
               : _notifications.isEmpty

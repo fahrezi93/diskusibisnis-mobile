@@ -1,4 +1,4 @@
-  import 'dart:io';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:image_picker/image_picker.dart';
@@ -743,12 +743,16 @@ class _AskQuestionScreenState extends State<AskQuestionScreen> {
               ),
             ),
             Text(
-              '${_titleController.text.length}/10',
+              _titleController.text.length < 10
+                  ? '${_titleController.text.length}/10 min'
+                  : '${_titleController.text.length}/200',
               style: TextStyle(
                 fontSize: 11,
                 color: _titleController.text.length < 10
                     ? const Color(0xFFDC2626)
-                    : const Color(0xFF64748B),
+                    : _titleController.text.length > 200
+                        ? const Color(0xFFDC2626)
+                        : const Color(0xFF64748B),
               ),
             ),
           ],
@@ -757,12 +761,14 @@ class _AskQuestionScreenState extends State<AskQuestionScreen> {
         TextField(
           controller: _titleController,
           onChanged: (_) => setState(() {}),
+          maxLength: 200,
           decoration: InputDecoration(
             hintText:
                 'Contoh: Strategi pemasaran digital untuk meningkatkan penjualan',
             hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
             filled: true,
             fillColor: const Color(0xFFF8FAFC),
+            counterText: '', // Hide default counter, we show custom one
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
@@ -799,12 +805,16 @@ class _AskQuestionScreenState extends State<AskQuestionScreen> {
               ),
             ),
             Text(
-              '${_contentController.text.length}/20',
+              _contentController.text.length < 20
+                  ? '${_contentController.text.length}/20 min'
+                  : '${_contentController.text.length}/5000',
               style: TextStyle(
                 fontSize: 11,
                 color: _contentController.text.length < 20
                     ? const Color(0xFFDC2626)
-                    : const Color(0xFF64748B),
+                    : _contentController.text.length > 5000
+                        ? const Color(0xFFDC2626)
+                        : const Color(0xFF64748B),
               ),
             ),
           ],
@@ -814,12 +824,14 @@ class _AskQuestionScreenState extends State<AskQuestionScreen> {
           controller: _contentController,
           focusNode: _contentFocusNode,
           onChanged: (_) => setState(() {}),
+          maxLength: 5000,
           decoration: InputDecoration(
             hintText:
                 'Jelaskan latar belakang bisnis, masalah utama, dan solusi yang sudah dicoba...\n\nGunakan @ untuk mention pengguna lain',
             hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
             filled: true,
             fillColor: const Color(0xFFF8FAFC),
+            counterText: '', // Hide default counter, we show custom one
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: const BorderSide(color: Color(0xFFE2E8F0)),

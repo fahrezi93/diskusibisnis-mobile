@@ -49,21 +49,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
         // Backend's public profile endpoint strips private info (email, authProvider, etc.)
         // We must preserve these from the stored session
-        currentUser = UserProfile(
-          id: freshProfile.id,
-          displayName: freshProfile.displayName,
-          username: freshProfile.username,
-          email:
-              freshProfile.email ?? currentUser.email, // Keep email if missing
-          avatarUrl: freshProfile.avatarUrl,
-          bio: freshProfile.bio,
-          reputationPoints: freshProfile.reputationPoints,
-          createdAt: freshProfile.createdAt,
-          isVerified: freshProfile.isVerified,
-          hasPassword: currentUser.hasPassword, // Keep private flag
-          authProvider: currentUser.authProvider, // Keep provider info
-          role: currentUser.role, // Keep role
-        );
+        if (freshProfile != null) {
+          currentUser = UserProfile(
+            id: freshProfile.id,
+            displayName: freshProfile.displayName,
+            username: freshProfile.username,
+            email: freshProfile.email ??
+                currentUser.email, // Keep email if missing
+            avatarUrl: freshProfile.avatarUrl,
+            bio: freshProfile.bio,
+            reputationPoints: freshProfile.reputationPoints,
+            createdAt: freshProfile.createdAt,
+            isVerified: freshProfile.isVerified,
+            hasPassword: currentUser.hasPassword, // Keep private flag
+            authProvider: currentUser.authProvider, // Keep provider info
+            role: currentUser.role, // Keep role
+          );
+        }
       } catch (e) {
         print('Error refreshing profile in settings: $e');
       }

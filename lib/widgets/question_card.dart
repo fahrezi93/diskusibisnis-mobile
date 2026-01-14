@@ -6,17 +6,42 @@ import '../models/question.dart';
 import '../screens/question_detail_screen.dart';
 import '../screens/profile_screen.dart';
 import '../utils/avatar_helper.dart';
+import '../services/api_service.dart';
 
-class QuestionCard extends StatelessWidget {
+class QuestionCard extends StatefulWidget {
   final Question question;
+  final VoidCallback? onRefresh;
 
+  const QuestionCard({super.key, required this.question, this.onRefresh});
+
+  @override
+  State<QuestionCard> createState() => _QuestionCardState();
+}
+
+class _QuestionCardState extends State<QuestionCard> {
   // Static formatter to avoid recreation on every build
   static final DateFormat _dateFormat = DateFormat('dd MMM yyyy');
+  static final ApiService _api = ApiService();
+  bool _prefetched = false;
 
-  const QuestionCard({super.key, required this.question});
+  @override
+  void initState() {
+    super.initState();
+    // Pre-fetch question detail in background so it loads instantly when tapped
+    _prefetchQuestionDetail();
+  }
+
+  void _prefetchQuestionDetail() {
+    if (!_prefetched) {
+      _prefetched = true;
+      // Fire and forget - this populates the cache
+      _api.getQuestionById(widget.question.id);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final question = widget.question;
     // RepaintBoundary isolates this widget's painting from the rest of the list
     return RepaintBoundary(
       child: Container(
@@ -28,14 +53,18 @@ class QuestionCard extends StatelessWidget {
         child: Material(
           color: Colors.transparent,
           child: InkWell(
-            onTap: () {
-              Navigator.push(
+            onTap: () async {
+              await Navigator.push(
                 context,
                 MaterialPageRoute(
                   builder: (context) =>
                       QuestionDetailScreen(questionId: question.id),
                 ),
               );
+              // Trigger refresh when returning from detail screen
+              if (mounted) {
+                widget.onRefresh?.call();
+              }
             },
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),

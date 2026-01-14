@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../models/tag.dart' as tag_model;
 import '../services/api_service.dart';
+import '../widgets/skeleton_loading.dart';
 import 'tag_detail_screen.dart';
 
 class TagsScreen extends StatefulWidget {
@@ -151,8 +152,19 @@ class _TagsScreenState extends State<TagsScreen> {
 
             // Grid
             if (_isLoading)
-              const Center(
-                  child: CircularProgressIndicator(color: Color(0xFF059669)))
+              GridView.builder(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  childAspectRatio: 0.85,
+                  crossAxisSpacing: 16,
+                  mainAxisSpacing: 16,
+                ),
+                itemCount: 6,
+                itemBuilder: (context, index) => const TagCardSkeleton(),
+              )
             else if (_filteredTags.isEmpty)
               const Padding(
                 padding: EdgeInsets.all(32),

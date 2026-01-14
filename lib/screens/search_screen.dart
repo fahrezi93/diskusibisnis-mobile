@@ -6,6 +6,7 @@ import '../models/question.dart';
 import '../models/user_profile.dart';
 import '../models/tag.dart';
 import '../widgets/question_card.dart';
+import '../widgets/skeleton_loading.dart';
 import 'profile_screen.dart';
 import 'tag_detail_screen.dart';
 import '../utils/avatar_helper.dart';
@@ -79,15 +80,15 @@ class _SearchScreenState extends State<SearchScreen>
     else if (index == 2) _searchTags();
   }
 
-  Future<void> _searchQuestions() async {
-    setState(() => _questionsLoading = true);
+  Future<void> _searchQuestions({bool silent = false}) async {
+    if (!silent) setState(() => _questionsLoading = true);
     try {
       final results = await _api.getQuestions(search: _query, sort: _sort);
       setState(() => _questions = results);
     } catch (e) {
       debugPrint('Error searching questions: $e');
     } finally {
-      setState(() => _questionsLoading = false);
+      if (!silent) setState(() => _questionsLoading = false);
     }
   }
 
@@ -192,8 +193,14 @@ class _SearchScreenState extends State<SearchScreen>
 
   Widget _buildQuestionsList() {
     if (_questionsLoading) {
-      return const Center(
-          child: CircularProgressIndicator(color: Color(0xFF059669)));
+      return ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: 5,
+        itemBuilder: (context, index) => const Padding(
+          padding: EdgeInsets.only(bottom: 12),
+          child: QuestionCardSkeleton(),
+        ),
+      );
     }
     if (_query.isEmpty) {
       return const Center(
@@ -211,7 +218,10 @@ class _SearchScreenState extends State<SearchScreen>
       itemBuilder: (context, index) {
         return Padding(
           padding: const EdgeInsets.only(bottom: 12),
-          child: QuestionCard(question: _questions[index]),
+          child: QuestionCard(
+            question: _questions[index],
+            onRefresh: () => _searchQuestions(silent: true),
+          ),
         );
       },
     );
@@ -248,8 +258,7 @@ class _SearchScreenState extends State<SearchScreen>
 
   Widget _buildUsersTab() {
     if (_usersLoading) {
-      return const Center(
-          child: CircularProgressIndicator(color: Color(0xFF059669)));
+      return const SearchResultSkeleton();
     }
     if (_query.isEmpty) {
       return const Center(
@@ -300,8 +309,7 @@ class _SearchScreenState extends State<SearchScreen>
 
   Widget _buildTagsTab() {
     if (_tagsLoading) {
-      return const Center(
-          child: CircularProgressIndicator(color: Color(0xFF059669)));
+      return const SearchResultSkeleton();
     }
     if (_query.isEmpty) {
       return const Center(

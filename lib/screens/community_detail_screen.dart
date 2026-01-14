@@ -5,6 +5,7 @@ import '../services/api_service.dart';
 import '../services/auth_service.dart';
 import '../utils/avatar_helper.dart';
 
+import '../widgets/skeleton_loading.dart';
 import 'edit_community_screen.dart';
 import '../models/question.dart';
 import '../widgets/question_card.dart';
@@ -228,9 +229,7 @@ class _CommunityDetailScreenState extends State<CommunityDetailScreen> {
     if (_isLoading) {
       return const Scaffold(
         backgroundColor: Color(0xFFF8FAFC),
-        body: Center(
-          child: CircularProgressIndicator(color: Color(0xFF059669)),
-        ),
+        body: SafeArea(child: CommunityDetailSkeleton()),
       );
     }
 

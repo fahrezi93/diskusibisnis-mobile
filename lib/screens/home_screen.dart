@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../widgets/hero_section.dart';
 import '../widgets/announcement_banner.dart';
+import '../widgets/skeleton_loading.dart';
 import '../services/api_service.dart';
 import '../models/question.dart';
 import '../widgets/question_card.dart';
@@ -18,26 +19,64 @@ class _HomeScreenState extends State<HomeScreen> {
   final ApiService _api = ApiService();
   List<Question> _questions = [];
   bool _isLoading = true;
+  bool _isRefreshing = false; // For background refresh indicator
   String _error = '';
   String _activeFilter = 'newest';
+
+  // Cache for each filter type to provide instant switching
+  final Map<String, List<Question>> _filterCache = {};
 
   @override
   void initState() {
     super.initState();
+    _loadQuestionsWithCache();
+    _prefetchExploreData(); // Pre-load data for explore pages
+  }
+
+  /// Load questions with cache-first approach for instant display
+  Future<void> _loadQuestionsWithCache() async {
+    // API service getQuestions now returns cached data instantly if available
+    // and triggers background refresh automatically
     _loadQuestions();
   }
 
-  Future<void> _loadQuestions() async {
-    setState(() {
-      _isLoading = true;
-      _error = '';
-    });
+  /// Pre-fetch data for explore pages so they load instantly when opened
+  void _prefetchExploreData() {
+    // Fire and forget - these will populate the cache
+    _api.getCommunities();
+    _api.getTags();
+    _api.getUsers();
+  }
+
+  Future<void> _loadQuestions({bool showFullLoader = true}) async {
+    // Check cache first for instant display
+    if (_filterCache.containsKey(_activeFilter) && showFullLoader) {
+      setState(() {
+        _questions = _filterCache[_activeFilter]!;
+        _isLoading = false;
+        _isRefreshing = true; // Show subtle refresh indicator
+      });
+    } else if (showFullLoader) {
+      setState(() {
+        _isLoading = true;
+        _error = '';
+      });
+    } else {
+      setState(() => _isRefreshing = true);
+    }
+
     try {
       final data = await _api.getQuestions(sort: _activeFilter);
-      setState(() {
-        _questions = data;
-        _isLoading = false;
-      });
+      // Update cache
+      _filterCache[_activeFilter] = data;
+
+      if (mounted) {
+        setState(() {
+          _questions = data;
+          _isLoading = false;
+          _isRefreshing = false;
+        });
+      }
     } catch (e) {
       String errorMessage = 'Gagal memuat data.';
       final String errorString = e.toString().toLowerCase();
@@ -54,17 +93,33 @@ class _HomeScreenState extends State<HomeScreen> {
         errorMessage = 'Gagal memuat data.\nPastikan server berjalan.';
       }
 
-      setState(() {
-        _error = errorMessage;
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          // Keep showing cached data if available
+          if (_filterCache.containsKey(_activeFilter)) {
+            _questions = _filterCache[_activeFilter]!;
+          }
+          _error = _questions.isEmpty ? errorMessage : '';
+          _isLoading = false;
+          _isRefreshing = false;
+        });
+      }
     }
   }
 
   void _setFilter(String filter) {
     if (_activeFilter != filter) {
       setState(() => _activeFilter = filter);
-      _loadQuestions();
+      // Use cached data if available for instant switch
+      if (_filterCache.containsKey(filter)) {
+        setState(() {
+          _questions = _filterCache[filter]!;
+        });
+        // Background refresh to get latest data
+        _loadQuestions(showFullLoader: false);
+      } else {
+        _loadQuestions();
+      }
     }
   }
 
@@ -167,9 +222,12 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildContent() {
-    if (_isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(color: Color(0xFF059669)),
+    if (_isLoading && _questions.isEmpty) {
+      // Show skeleton loading instead of spinner
+      return ListView.builder(
+        padding: const EdgeInsets.only(top: 8, bottom: 100),
+        itemCount: 5,
+        itemBuilder: (context, index) => const QuestionCardSkeleton(),
       );
     }
 
@@ -206,15 +264,36 @@ class _HomeScreenState extends State<HomeScreen> {
       return const Center(child: Text('Belum ada diskusi.'));
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.only(top: 8, bottom: 100),
-      itemCount: _questions.length,
-      itemBuilder: (context, index) {
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-          child: QuestionCard(question: _questions[index]),
-        );
-      },
+    return Stack(
+      children: [
+        ListView.builder(
+          padding: const EdgeInsets.only(top: 8, bottom: 100),
+          itemCount: _questions.length,
+          itemBuilder: (context, index) {
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+              child: QuestionCard(
+                question: _questions[index],
+                onRefresh: () => _loadQuestions(showFullLoader: false),
+              ),
+            );
+          },
+        ),
+        // Subtle refresh indicator at top
+        if (_isRefreshing)
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: Container(
+              height: 2,
+              child: const LinearProgressIndicator(
+                backgroundColor: Colors.transparent,
+                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF059669)),
+              ),
+            ),
+          ),
+      ],
     );
   }
 

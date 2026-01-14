@@ -3,6 +3,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import '../models/user_profile.dart';
 import '../services/api_service.dart';
 import '../utils/avatar_helper.dart';
+import '../widgets/skeleton_loading.dart';
 import 'profile_screen.dart';
 
 class LeaderboardScreen extends StatefulWidget {
@@ -170,11 +171,10 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                     ],
                   ),
                   child: _isLoading
-                      ? const Padding(
-                          padding: EdgeInsets.all(40.0),
-                          child: Center(
-                            child: CircularProgressIndicator(
-                                color: Color(0xFF059669)),
+                      ? Column(
+                          children: List.generate(
+                            5,
+                            (index) => const LeaderboardItemSkeleton(),
                           ),
                         )
                       : _users.isEmpty

@@ -3,6 +3,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../models/community.dart';
 import '../services/api_service.dart';
+import '../widgets/skeleton_loading.dart';
 import 'community_detail_screen.dart';
 import 'create_community_screen.dart';
 
@@ -177,8 +178,13 @@ class _CommunitiesScreenState extends State<CommunitiesScreen> {
           // Content
           Expanded(
             child: _isLoading
-                ? const Center(
-                    child: CircularProgressIndicator(color: Color(0xFF059669)))
+                ? ListView.separated(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: 5,
+                    separatorBuilder: (_, __) => const SizedBox(height: 16),
+                    itemBuilder: (context, index) =>
+                        const CommunityCardSkeleton(),
+                  )
                 : _filteredCommunities.isEmpty
                     ? _buildEmptyState()
                     : ListView.separated(

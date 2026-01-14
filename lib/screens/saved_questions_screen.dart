@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
+import '../widgets/skeleton_loading.dart';
 import 'question_detail_screen.dart';
 
 class SavedQuestionsScreen extends StatefulWidget {
@@ -57,20 +58,35 @@ class _SavedQuestionsScreenState extends State<SavedQuestionsScreen> {
   }
 
   Future<void> _removeBookmark(String questionId) async {
+    // Optimistic delete - remove from list immediately
+    final removedIndex =
+        _bookmarks.indexWhere((b) => b['id']?.toString() == questionId);
+    Map<String, dynamic>? removedItem;
+    if (removedIndex != -1) {
+      removedItem = _bookmarks[removedIndex];
+      setState(() {
+        _bookmarks.removeAt(removedIndex);
+      });
+    }
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Dihapus dari simpanan'),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: Color(0xFF334155),
+        ),
+      );
+    }
+
     try {
       await _api.deleteBookmark(token: _auth.token!, questionId: questionId);
-      await _loadBookmarks();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Dihapus dari simpanan'),
-            behavior: SnackBarBehavior.floating,
-            backgroundColor: Color(0xFF334155),
-          ),
-        );
-      }
     } catch (e) {
-      if (mounted) {
+      // Rollback on error
+      if (removedItem != null && mounted) {
+        setState(() {
+          _bookmarks.insert(removedIndex, removedItem!);
+        });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(e.toString().replaceAll('Exception: ', '')),
@@ -103,8 +119,11 @@ class _SavedQuestionsScreenState extends State<SavedQuestionsScreen> {
         ),
       ),
       body: _isLoading
-          ? const Center(
-              child: CircularProgressIndicator(color: Color(0xFF059669)))
+          ? ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: 5,
+              itemBuilder: (context, index) => const QuestionCardSkeleton(),
+            )
           : !_isLoggedIn
               ? _buildLoginRequired()
               : _error.isNotEmpty

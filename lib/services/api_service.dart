@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../config/app_config.dart';
@@ -9,10 +10,20 @@ import '../models/community.dart';
 import '../models/ticket.dart';
 import '../models/tag.dart' as tag_model;
 import '../models/reputation_activity.dart';
+import 'cache_service.dart';
 
 class ApiService {
   // URL is now configured in AppConfig - toggle isProduction to switch
   static String get baseUrl => AppConfig.apiUrl;
+
+  // Cache service for instant data loading
+  final CacheService _cache = CacheService();
+
+  // Reusable HTTP client for better performance (connection pooling)
+  static final http.Client _client = http.Client();
+
+  // Timeout duration for API calls
+  static const Duration _timeout = Duration(seconds: 15);
 
   // Reset password with token
   Future<bool> resetPassword(String token, String newPassword) async {
@@ -42,7 +53,22 @@ class ApiService {
       String tag = '',
       String sort = 'newest',
       int limit = 10,
-      int page = 1}) async {
+      int page = 1,
+      bool useCache = true}) async {
+    final cacheKey =
+        CacheService.questionsKey(sort: sort, tag: tag, search: search);
+
+    // Return cached data if available and caching is enabled
+    if (useCache) {
+      final cached = _cache.get<List<Question>>(cacheKey);
+      if (cached != null) {
+        // Trigger background refresh
+        _refreshQuestionsInBackground(
+            search: search, tag: tag, sort: sort, limit: limit, page: page);
+        return cached;
+      }
+    }
+
     try {
       final queryParameters = {
         'search': search,
@@ -54,7 +80,7 @@ class ApiService {
 
       final uri = Uri.parse('$baseUrl/questions')
           .replace(queryParameters: queryParameters);
-      final response = await http.get(uri);
+      final response = await _client.get(uri).timeout(_timeout);
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -70,42 +96,108 @@ class ApiService {
           list = data;
         }
 
-        return list.map((json) => Question.fromJson(json)).toList();
+        final questions = list.map((json) => Question.fromJson(json)).toList();
+
+        // Cache the results
+        _cache.set(cacheKey, questions);
+
+        return questions;
       } else {
         throw Exception('Gagal mengambil data: ${response.statusCode}');
       }
     } catch (e) {
+      // If network fails, try to return stale cache
+      final staleCache = _cache.get<List<Question>>(cacheKey);
+      if (staleCache != null) return staleCache;
       throw Exception('Error koneksi: $e');
     }
   }
 
+  // Background refresh for questions (non-blocking)
+  void _refreshQuestionsInBackground({
+    String search = '',
+    String tag = '',
+    String sort = 'newest',
+    int limit = 10,
+    int page = 1,
+  }) {
+    getQuestions(
+        search: search,
+        tag: tag,
+        sort: sort,
+        limit: limit,
+        page: page,
+        useCache: false);
+  }
+
   Future<Map<String, dynamic>> getQuestionById(String id,
-      {String? token}) async {
+      {String? token, String? userId, bool useCache = true}) async {
+    // Generate cache key specific to user if provided
+    final cacheKey = CacheService.questionDetailKey(id, userId: userId);
+
+    // Return cached data instantly if available
+    if (useCache) {
+      final cached = _cache.get<Map<String, dynamic>>(cacheKey);
+      if (cached != null) {
+        print(
+            '[ApiService] Returned cached question detail for $id (User: $userId)');
+        // Trigger background refresh to get latest data
+        _refreshQuestionDetailInBackground(id, token: token, userId: userId);
+        return cached;
+      }
+    }
+
     try {
       final headers = <String, String>{'Content-Type': 'application/json'};
       if (token != null) {
         headers['Authorization'] = 'Bearer $token';
       }
 
-      final response = await http.get(
-        Uri.parse('$baseUrl/questions/$id'),
-        headers: headers,
-      );
+      print('[ApiService] Fetching question $id (Has Token: ${token != null})');
+
+      final response = await _client
+          .get(
+            Uri.parse('$baseUrl/questions/$id'),
+            headers: headers,
+          )
+          .timeout(_timeout);
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
+        Map<String, dynamic> questionData;
         if (data is Map && data.containsKey('data')) {
-          return data['data'] as Map<String, dynamic>;
+          questionData = data['data'] as Map<String, dynamic>;
+        } else {
+          questionData = data as Map<String, dynamic>;
         }
-        return data as Map<String, dynamic>;
+
+        // Debug vote status
+        print(
+            '[ApiService] Question loaded. User Vote: ${questionData['user_vote']}');
+
+        // Cache the question detail
+        _cache.set(cacheKey, questionData,
+            duration: CacheService.shortCacheDuration);
+
+        return questionData;
       } else if (response.statusCode == 404) {
         throw Exception('Pertanyaan tidak ditemukan');
       } else {
         throw Exception('Gagal mengambil data: ${response.statusCode}');
       }
     } catch (e) {
+      print('[ApiService] Error fetching question: $e');
+      // If network fails, try to return stale cache
+      final staleCache = _cache.get<Map<String, dynamic>>(cacheKey);
+      if (staleCache != null) return staleCache;
       throw Exception('Error koneksi: $e');
     }
+  }
+
+  // Background refresh for question detail
+  void _refreshQuestionDetailInBackground(String id,
+      {String? token, String? userId}) {
+    getQuestionById(id, token: token, userId: userId, useCache: false);
   }
 
   // Vote on question or answer
@@ -120,6 +212,8 @@ class ApiService {
       final String targetType = answerId != null ? 'answer' : 'question';
       final String targetId = answerId ?? questionId ?? '';
 
+      print('[ApiService] Voting: $voteType on $targetType $targetId');
+
       final response = await http.post(
         Uri.parse('$baseUrl/votes'),
         headers: {
@@ -133,6 +227,9 @@ class ApiService {
         }),
       );
 
+      print('[ApiService] Vote response status: ${response.statusCode}');
+      print('[ApiService] Vote response body: ${response.body}');
+
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = json.decode(response.body);
         return data['data'] as Map<String, dynamic>?;
@@ -143,6 +240,7 @@ class ApiService {
         throw Exception(error['message'] ?? 'Gagal vote');
       }
     } catch (e) {
+      print('[ApiService] Vote error: $e');
       rethrow;
     }
   }
@@ -345,9 +443,21 @@ class ApiService {
     }
   }
 
-  Future<UserProfile> getProfile(String id) async {
+  Future<UserProfile?> getProfile(String id, {bool useCache = true}) async {
+    final cacheKey = CacheService.profileKey(id);
+
+    // Return cached profile instantly
+    if (useCache) {
+      final cached = _cache.get<UserProfile>(cacheKey);
+      if (cached != null) {
+        _refreshProfileInBackground(id);
+        return cached;
+      }
+    }
+
     try {
-      final response = await http.get(Uri.parse('$baseUrl/users/$id'));
+      final response =
+          await _client.get(Uri.parse('$baseUrl/users/$id')).timeout(_timeout);
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -360,19 +470,32 @@ class ApiService {
           userData = data['user'];
         }
 
-        return UserProfile.fromJson(userData ?? {});
+        final profile = UserProfile.fromJson(userData ?? {});
+        _cache.set(cacheKey, profile);
+        return profile;
       } else {
         throw Exception('Gagal mengambil profil: ${response.statusCode}');
       }
     } catch (e) {
+      final staleCache = _cache.get<UserProfile>(cacheKey);
+      if (staleCache != null) return staleCache;
       throw Exception('Error koneksi: $e');
     }
   }
 
+  void _refreshProfileInBackground(String id) {
+    getProfile(id, useCache: false);
+  }
+
   Future<List<Question>> getUserQuestions(String userId) async {
+    print('[ApiService] getUserQuestions called for userId: $userId');
     try {
-      final response =
-          await http.get(Uri.parse('$baseUrl/users/$userId/questions'));
+      final response = await _client
+          .get(Uri.parse('$baseUrl/users/$userId/questions'))
+          .timeout(_timeout);
+
+      print(
+          '[ApiService] getUserQuestions response status: ${response.statusCode}');
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -387,19 +510,28 @@ class ApiService {
         } else if (data is Map && data.containsKey('questions')) {
           list = data['questions'];
         }
+        print('[ApiService] getUserQuestions found ${list.length} questions');
         return list.map((json) => Question.fromJson(json)).toList();
       } else {
+        print(
+            '[ApiService] getUserQuestions failed with status: ${response.statusCode}');
         return [];
       }
     } catch (e) {
+      print('[ApiService] getUserQuestions error: $e');
       return [];
     }
   }
 
   Future<List<Answer>> getUserAnswers(String userId) async {
+    print('[ApiService] getUserAnswers called for userId: $userId');
     try {
-      final response =
-          await http.get(Uri.parse('$baseUrl/users/$userId/answers'));
+      final response = await _client
+          .get(Uri.parse('$baseUrl/users/$userId/answers'))
+          .timeout(_timeout);
+
+      print(
+          '[ApiService] getUserAnswers response status: ${response.statusCode}');
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -414,11 +546,15 @@ class ApiService {
         } else if (data is Map && data.containsKey('answers')) {
           list = data['answers'];
         }
+        print('[ApiService] getUserAnswers found ${list.length} answers');
         return list.map((json) => Answer.fromJson(json)).toList();
       } else {
+        print(
+            '[ApiService] getUserAnswers failed with status: ${response.statusCode}');
         return [];
       }
     } catch (e) {
+      print('[ApiService] getUserAnswers error: $e');
       return [];
     }
   }
@@ -565,64 +701,130 @@ class ApiService {
     }
   }
 
-  Future<List<Community>> getCommunities() async {
+  Future<List<Community>> getCommunities({bool useCache = true}) async {
+    final cacheKey = CacheService.communitiesKey();
+
+    if (useCache) {
+      final cached = _cache.get<List<Community>>(cacheKey);
+      if (cached != null) {
+        _refreshCommunitiesInBackground();
+        return cached;
+      }
+    }
+
     try {
-      final response = await http.get(Uri.parse('$baseUrl/communities'));
+      final response = await _client
+          .get(Uri.parse('$baseUrl/communities'))
+          .timeout(_timeout);
       if (response.statusCode == 200) {
         final Map<String, dynamic> json = jsonDecode(response.body);
         if (json['data'] != null && json['data']['communities'] != null) {
           final List<dynamic> data = json['data']['communities'];
-          return data.map((e) => Community.fromJson(e)).toList();
+          final communities = data.map((e) => Community.fromJson(e)).toList();
+          _cache.set(cacheKey, communities,
+              duration: CacheService.longCacheDuration);
+          return communities;
         }
       }
-      return [];
+      return _cache.get<List<Community>>(cacheKey) ?? [];
     } catch (e) {
       print('Error getCommunities: $e');
-      return [];
+      return _cache.get<List<Community>>(cacheKey) ?? [];
     }
   }
 
-  Future<List<tag_model.TopicTag>> getTags({String search = ''}) async {
+  void _refreshCommunitiesInBackground() {
+    getCommunities(useCache: false);
+  }
+
+  Future<List<tag_model.TopicTag>> getTags(
+      {String search = '', bool useCache = true}) async {
+    final cacheKey = CacheService.tagsKey();
+
+    if (useCache && search.isEmpty) {
+      final cached = _cache.get<List<tag_model.TopicTag>>(cacheKey);
+      if (cached != null) {
+        _refreshTagsInBackground();
+        return cached;
+      }
+    }
+
     try {
       final uri = Uri.parse('$baseUrl/tags').replace(queryParameters: {
         if (search.isNotEmpty) 'search': search,
       });
-      final response = await http.get(uri);
+      final response = await _client.get(uri).timeout(_timeout);
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> json = jsonDecode(response.body);
         if (json['data'] != null && json['data']['tags'] != null) {
           final List<dynamic> data = json['data']['tags'];
-          return data.map((e) => tag_model.TopicTag.fromJson(e)).toList();
+          final tags = data.map((e) => tag_model.TopicTag.fromJson(e)).toList();
+          if (search.isEmpty) {
+            _cache.set(cacheKey, tags,
+                duration: CacheService.longCacheDuration);
+          }
+          return tags;
         }
       }
-      return [];
+      return search.isEmpty
+          ? (_cache.get<List<tag_model.TopicTag>>(cacheKey) ?? [])
+          : [];
     } catch (e) {
       print('Error getTags: $e');
-      return [];
+      return search.isEmpty
+          ? (_cache.get<List<tag_model.TopicTag>>(cacheKey) ?? [])
+          : [];
     }
   }
 
-  Future<List<UserProfile>> getUsers({String search = ''}) async {
+  void _refreshTagsInBackground() {
+    getTags(useCache: false);
+  }
+
+  Future<List<UserProfile>> getUsers(
+      {String search = '', bool useCache = true}) async {
+    final cacheKey = CacheService.usersKey();
+
+    if (useCache && search.isEmpty) {
+      final cached = _cache.get<List<UserProfile>>(cacheKey);
+      if (cached != null) {
+        _refreshUsersInBackground();
+        return cached;
+      }
+    }
+
     try {
       final uri = Uri.parse('$baseUrl/users').replace(queryParameters: {
         'sort': 'reputation',
         if (search.isNotEmpty) 'search': search,
       });
 
-      final response = await http.get(uri);
+      final response = await _client.get(uri).timeout(_timeout);
       if (response.statusCode == 200) {
         final Map<String, dynamic> json = jsonDecode(response.body);
         if (json['data'] != null && json['data']['users'] != null) {
           final List<dynamic> data = json['data']['users'];
-          return data.map((e) => UserProfile.fromJson(e)).toList();
+          final users = data.map((e) => UserProfile.fromJson(e)).toList();
+          if (search.isEmpty) {
+            _cache.set(cacheKey, users);
+          }
+          return users;
         }
       }
-      return [];
+      return search.isEmpty
+          ? (_cache.get<List<UserProfile>>(cacheKey) ?? [])
+          : [];
     } catch (e) {
       print('Error getUsers: $e');
-      return [];
+      return search.isEmpty
+          ? (_cache.get<List<UserProfile>>(cacheKey) ?? [])
+          : [];
     }
+  }
+
+  void _refreshUsersInBackground() {
+    getUsers(useCache: false);
   }
 
   Future<List<ReputationActivity>> getReputationActivities(

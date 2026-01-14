@@ -6,6 +6,7 @@ import '../models/question.dart';
 import '../models/answer.dart';
 import '../services/api_service.dart';
 import '../widgets/question_card.dart';
+import '../widgets/skeleton_loading.dart';
 import '../services/auth_service.dart';
 import '../utils/avatar_helper.dart';
 import 'settings_screen.dart';
@@ -44,8 +45,8 @@ class _ProfileScreenState extends State<ProfileScreen>
     super.dispose();
   }
 
-  Future<void> _loadProfileData() async {
-    setState(() => _isLoading = true);
+  Future<void> _loadProfileData({bool silent = false}) async {
+    if (!silent) setState(() => _isLoading = true);
     try {
       String? userId = widget.userId;
 
@@ -65,53 +66,65 @@ class _ProfileScreenState extends State<ProfileScreen>
       // At this point userId must be non-null if we didn't return above
       final validUserId = userId;
 
-      // 2. Fetch Profile, Questions, Answers
-      final profile = await _apiService.getProfile(validUserId);
-      var userQuestions = await _apiService.getUserQuestions(validUserId);
+      // OPTIMIZATION: Fetch Profile, Questions, Answers in PARALLEL
+      // Use useCache: false to get fresh data for profile stats
+      final results = await Future.wait([
+        _apiService.getProfile(validUserId, useCache: false),
+        _apiService.getUserQuestions(validUserId),
+        _apiService.getUserAnswers(validUserId).catchError((_) => <Answer>[]),
+      ]);
+
+      // Handle nullable profile
+      final profileResult = results[0];
+      if (profileResult == null) {
+        if (mounted) setState(() => _isLoading = false);
+        return;
+      }
+
+      final profile = profileResult as UserProfile;
+      var userQuestions = results[1] as List<Question>;
+      final userAnswers = results[2] as List<Answer>;
+
+      // Debug log
+      print('[ProfileScreen] Loaded profile: ${profile.displayName}');
+      print('[ProfileScreen] Questions count: ${userQuestions.length}');
+      print('[ProfileScreen] Answers count: ${userAnswers.length}');
 
       // PATCH: If question author is 'Unknown' or avatar is empty,
       // inject the profile data we just fetched since this is the user's own profile.
-      if (profile != null) {
-        final authorUser = User(
-          id: profile.id,
-          name: profile.displayName,
-          avatar: profile.avatarUrl ?? '',
-          reputation: profile.reputationPoints,
-          isVerified: profile.isVerified,
-        );
+      final authorUser = User(
+        id: profile.id,
+        name: profile.displayName,
+        avatar: profile.avatarUrl ?? '',
+        reputation: profile.reputationPoints,
+        isVerified: profile.isVerified,
+      );
 
-        userQuestions = userQuestions.map((q) {
-          // Patch if name is Unknown OR avatar is empty (since this is user's own questions)
-          if (q.author.name == 'Unknown' || q.author.avatar.isEmpty) {
-            final plain = q.content
-                .replaceAll(RegExp(r'<[^>]*>'), '')
-                .replaceAll(RegExp(r'\s+'), ' ')
-                .trim();
+      userQuestions = userQuestions.map((q) {
+        // Patch if name is Unknown OR avatar is empty (since this is user's own questions)
+        if (q.author.name == 'Unknown' || q.author.avatar.isEmpty) {
+          final plain = q.content
+              .replaceAll(RegExp(r'<[^>]*>'), '')
+              .replaceAll(RegExp(r'\s+'), ' ')
+              .trim();
 
-            return Question(
-              id: q.id,
-              title: q.title,
-              content: q.content,
-              plainContent: plain,
-              firstImage: q.firstImage,
-              author: authorUser,
-              upvotesCount: q.upvotesCount,
-              answersCount: q.answersCount,
-              viewsCount: q.viewsCount,
-              hasAcceptedAnswer: q.hasAcceptedAnswer,
-              tags: q.tags,
-              createdAt: q.createdAt,
-            );
-          }
-          return q;
-        }).toList();
-      }
-
-      // Temporary: Get answers from API if exists, or empty list
-      List<Answer> userAnswers = [];
-      try {
-        userAnswers = await _apiService.getUserAnswers(validUserId);
-      } catch (_) {}
+          return Question(
+            id: q.id,
+            title: q.title,
+            content: q.content,
+            plainContent: plain,
+            firstImage: q.firstImage,
+            author: authorUser,
+            upvotesCount: q.upvotesCount,
+            answersCount: q.answersCount,
+            viewsCount: q.viewsCount,
+            hasAcceptedAnswer: q.hasAcceptedAnswer,
+            tags: q.tags,
+            createdAt: q.createdAt,
+          );
+        }
+        return q;
+      }).toList();
 
       if (mounted) {
         setState(() {
@@ -130,9 +143,18 @@ class _ProfileScreenState extends State<ProfileScreen>
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Scaffold(
-        body:
-            Center(child: CircularProgressIndicator(color: Color(0xFF059669))),
+      return Scaffold(
+        backgroundColor: const Color(0xFFF8FAFC),
+        body: SingleChildScrollView(
+          child: Column(
+            children: [
+              const ProfileHeaderSkeleton(),
+              const SizedBox(height: 16),
+              // Skeleton question cards
+              for (int i = 0; i < 3; i++) const QuestionCardSkeleton(),
+            ],
+          ),
+        ),
       );
     }
 
@@ -480,7 +502,12 @@ class _ProfileScreenState extends State<ProfileScreen>
           'Belum ada pertanyaan yang dibuat', LucideIcons.messageSquare);
     }
     return Column(
-      children: _questions.map((q) => QuestionCard(question: q)).toList(),
+      children: _questions
+          .map((q) => QuestionCard(
+                question: q,
+                onRefresh: () => _loadProfileData(silent: true),
+              ))
+          .toList(),
     );
   }
 

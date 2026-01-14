@@ -3,6 +3,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import '../services/api_service.dart';
 import '../models/question.dart';
 import '../utils/avatar_helper.dart';
+import '../widgets/skeleton_loading.dart';
 import 'question_detail_screen.dart';
 import 'profile_screen.dart';
 
@@ -18,8 +19,12 @@ class _UnansweredQuestionsScreenState extends State<UnansweredQuestionsScreen> {
   final ApiService _api = ApiService();
   List<Question> _questions = [];
   bool _isLoading = true;
+  bool _isRefreshing = false;
   String _error = '';
   String _activeSort = 'newest';
+
+  // Cache for instant filter switching
+  final Map<String, List<Question>> _sortCache = {};
 
   @override
   void initState() {
@@ -27,11 +32,23 @@ class _UnansweredQuestionsScreenState extends State<UnansweredQuestionsScreen> {
     _loadQuestions();
   }
 
-  Future<void> _loadQuestions() async {
-    setState(() {
-      _isLoading = true;
-      _error = '';
-    });
+  Future<void> _loadQuestions({bool showFullLoader = true}) async {
+    // Use cache for instant display
+    if (_sortCache.containsKey(_activeSort) && showFullLoader) {
+      setState(() {
+        _questions = _sortCache[_activeSort]!;
+        _isLoading = false;
+        _isRefreshing = true;
+      });
+    } else if (showFullLoader) {
+      setState(() {
+        _isLoading = true;
+        _error = '';
+      });
+    } else {
+      setState(() => _isRefreshing = true);
+    }
+
     try {
       final data = await _api.getQuestions(
         sort: _activeSort == 'votes'
@@ -42,22 +59,37 @@ class _UnansweredQuestionsScreenState extends State<UnansweredQuestionsScreen> {
                     ? 'newest'
                     : 'unanswered',
       );
-      setState(() {
-        _questions = data;
-        _isLoading = false;
-      });
+      _sortCache[_activeSort] = data;
+      if (mounted) {
+        setState(() {
+          _questions = data;
+          _isLoading = false;
+          _isRefreshing = false;
+        });
+      }
     } catch (e) {
-      setState(() {
-        _error = e.toString();
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          if (_sortCache.containsKey(_activeSort)) {
+            _questions = _sortCache[_activeSort]!;
+          }
+          _error = _questions.isEmpty ? e.toString() : '';
+          _isLoading = false;
+          _isRefreshing = false;
+        });
+      }
     }
   }
 
   void _changeSortFilter(String sort) {
     if (_activeSort != sort) {
       setState(() => _activeSort = sort);
-      _loadQuestions();
+      if (_sortCache.containsKey(sort)) {
+        setState(() => _questions = _sortCache[sort]!);
+        _loadQuestions(showFullLoader: false);
+      } else {
+        _loadQuestions();
+      }
     }
   }
 
@@ -233,10 +265,14 @@ class _UnansweredQuestionsScreenState extends State<UnansweredQuestionsScreen> {
           ),
 
           // Questions list
-          _isLoading
-              ? const SliverFillRemaining(
-                  child: Center(
-                    child: CircularProgressIndicator(color: Color(0xFF059669)),
+          _isLoading && _questions.isEmpty
+              ? SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+                  sliver: SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) => const QuestionCardSkeleton(),
+                      childCount: 5,
+                    ),
                   ),
                 )
               : _error.isNotEmpty
@@ -248,6 +284,29 @@ class _UnansweredQuestionsScreenState extends State<UnansweredQuestionsScreen> {
                           sliver: SliverList(
                             delegate: SliverChildBuilderDelegate(
                               (context, index) {
+                                // Show refresh indicator at top
+                                if (index == 0 && _isRefreshing) {
+                                  return Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Container(
+                                        height: 2,
+                                        child: const LinearProgressIndicator(
+                                          backgroundColor: Colors.transparent,
+                                          valueColor:
+                                              AlwaysStoppedAnimation<Color>(
+                                                  Color(0xFF059669)),
+                                        ),
+                                      ),
+                                      Padding(
+                                        padding:
+                                            const EdgeInsets.only(bottom: 12),
+                                        child: _buildQuestionCard(
+                                            _questions[index]),
+                                      ),
+                                    ],
+                                  );
+                                }
                                 return Padding(
                                   padding: const EdgeInsets.only(bottom: 12),
                                   child: _buildQuestionCard(_questions[index]),
@@ -308,13 +367,17 @@ class _UnansweredQuestionsScreenState extends State<UnansweredQuestionsScreen> {
 
   Widget _buildQuestionCard(Question question) {
     return GestureDetector(
-      onTap: () {
-        Navigator.push(
+      onTap: () async {
+        await Navigator.push(
           context,
           MaterialPageRoute(
             builder: (context) => QuestionDetailScreen(questionId: question.id),
           ),
         );
+        // Refresh list after returning
+        if (mounted) {
+          _loadQuestions(showFullLoader: false);
+        }
       },
       behavior: HitTestBehavior.opaque,
       child: Stack(

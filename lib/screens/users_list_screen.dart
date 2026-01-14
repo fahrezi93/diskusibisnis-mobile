@@ -3,6 +3,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import '../models/user_profile.dart';
 import '../services/api_service.dart';
 import '../utils/avatar_helper.dart';
+import '../widgets/skeleton_loading.dart';
 import 'profile_screen.dart';
 
 class UsersListScreen extends StatefulWidget {
@@ -83,8 +84,17 @@ class _UsersListScreenState extends State<UsersListScreen> {
         ],
       ),
       body: _isLoading
-          ? const Center(
-              child: CircularProgressIndicator(color: Color(0xFF059669)))
+          ? GridView.builder(
+              padding: const EdgeInsets.all(16),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                childAspectRatio: 0.75,
+                crossAxisSpacing: 16,
+                mainAxisSpacing: 16,
+              ),
+              itemCount: 6,
+              itemBuilder: (context, index) => const UserCardSkeleton(),
+            )
           : Column(
               children: [
                 // Search
@@ -196,7 +206,10 @@ class _UsersListScreenState extends State<UsersListScreen> {
                   color: _getRoleBgColor(user.role),
                   borderRadius: BorderRadius.circular(4)),
               child: Text(_getRoleLabel(user.role),
-                  style: TextStyle(fontSize: 10, color: _getRoleTextColor(user.role), fontWeight: FontWeight.w500)),
+                  style: TextStyle(
+                      fontSize: 10,
+                      color: _getRoleTextColor(user.role),
+                      fontWeight: FontWeight.w500)),
             ),
             const SizedBox(height: 12),
             Container(

@@ -12,6 +12,7 @@ import '../models/user_profile.dart';
 import '../models/tag.dart' as tag_model;
 import '../widgets/comment_section.dart';
 import '../widgets/vote_widget.dart';
+import '../widgets/skeleton_loading.dart';
 
 class QuestionDetailScreen extends StatefulWidget {
   final String questionId;
@@ -158,8 +159,11 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
 
     try {
       await _auth.init();
-      final data =
-          await _api.getQuestionById(widget.questionId, token: _auth.token);
+      final data = await _api.getQuestionById(
+        widget.questionId,
+        token: _auth.token,
+        userId: _auth.currentUser?.id,
+      );
       if (mounted) {
         setState(() {
           _question = data;
@@ -188,6 +192,20 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
       return;
     }
 
+    // Store previous state for rollback if API fails
+    final previousQuestion = Map<String, dynamic>.from(_question!);
+
+    // Optimistic UI Update - update immediately without waiting for API
+    setState(() {
+      if (answerId == null) {
+        // Voting on question
+        _updateQuestionVoteOptimistically(voteType);
+      } else {
+        // Voting on answer
+        _updateAnswerVoteOptimistically(answerId, voteType);
+      }
+    });
+
     try {
       await _api.vote(
         token: _auth.token!,
@@ -195,9 +213,93 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
         answerId: answerId,
         voteType: voteType,
       );
-      await _loadQuestion(refresh: true); // Silent refresh
+      // Background refresh to sync with server (non-blocking)
+      _loadQuestion(refresh: true);
     } catch (e) {
+      // Rollback to previous state on error
+      if (mounted) {
+        setState(() {
+          _question = previousQuestion;
+        });
+      }
       _showSnackBar(e.toString().replaceAll('Exception: ', ''));
+    }
+  }
+
+  void _updateQuestionVoteOptimistically(String voteType) {
+    final currentVote = _question!['user_vote'];
+    int upvotes =
+        int.tryParse(_question!['upvotes_count']?.toString() ?? '0') ?? 0;
+    int downvotes =
+        int.tryParse(_question!['downvotes_count']?.toString() ?? '0') ?? 0;
+
+    if (currentVote == voteType) {
+      // Toggle off - removing vote
+      _question!['user_vote'] = null;
+      if (voteType == 'upvote') {
+        upvotes--;
+      } else {
+        downvotes--;
+      }
+    } else {
+      // New vote or changing vote
+      if (currentVote == 'upvote') {
+        upvotes--;
+      } else if (currentVote == 'downvote') {
+        downvotes--;
+      }
+
+      if (voteType == 'upvote') {
+        upvotes++;
+      } else {
+        downvotes++;
+      }
+      _question!['user_vote'] = voteType;
+    }
+
+    _question!['upvotes_count'] = upvotes;
+    _question!['downvotes_count'] = downvotes;
+  }
+
+  void _updateAnswerVoteOptimistically(String answerId, String voteType) {
+    final answers = _question!['answers'] as List? ?? [];
+    for (int i = 0; i < answers.length; i++) {
+      final answer = answers[i];
+      if (answer['id']?.toString() == answerId) {
+        final currentVote = answer['user_vote'];
+        int upvotes =
+            int.tryParse(answer['upvotes_count']?.toString() ?? '0') ?? 0;
+        int downvotes =
+            int.tryParse(answer['downvotes_count']?.toString() ?? '0') ?? 0;
+
+        if (currentVote == voteType) {
+          // Toggle off
+          answer['user_vote'] = null;
+          if (voteType == 'upvote') {
+            upvotes--;
+          } else {
+            downvotes--;
+          }
+        } else {
+          // New vote or changing
+          if (currentVote == 'upvote') {
+            upvotes--;
+          } else if (currentVote == 'downvote') {
+            downvotes--;
+          }
+
+          if (voteType == 'upvote') {
+            upvotes++;
+          } else {
+            downvotes++;
+          }
+          answer['user_vote'] = voteType;
+        }
+
+        answer['upvotes_count'] = upvotes;
+        answer['downvotes_count'] = downvotes;
+        break;
+      }
     }
   }
 
@@ -208,22 +310,37 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
     }
 
     final isBookmarked = _question!['is_bookmarked'] == true;
+
+    // Optimistic update - immediately toggle UI
+    setState(() {
+      _question!['is_bookmarked'] = !isBookmarked;
+    });
+
+    // Show feedback immediately
+    _showSnackBar(
+        isBookmarked ? 'Dihapus dari simpanan' : 'Disimpan ke koleksi');
+
     try {
       if (isBookmarked) {
         await _api.deleteBookmark(
           token: _auth.token!,
           questionId: widget.questionId,
         );
-        _showSnackBar('Dihapus dari simpanan');
       } else {
         await _api.createBookmark(
           token: _auth.token!,
           questionId: widget.questionId,
         );
-        _showSnackBar('Disimpan ke koleksi');
       }
-      await _loadQuestion(refresh: true); // Silent refresh
+      // Background sync
+      _loadQuestion(refresh: true);
     } catch (e) {
+      // Rollback on error
+      if (mounted) {
+        setState(() {
+          _question!['is_bookmarked'] = isBookmarked;
+        });
+      }
       _showSnackBar(e.toString().replaceAll('Exception: ', ''));
     }
   }
@@ -583,8 +700,7 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
         children: [
           Positioned.fill(
             child: _isLoading
-                ? const Center(
-                    child: CircularProgressIndicator(color: Color(0xFF059669)))
+                ? const QuestionDetailSkeleton()
                 : _error.isNotEmpty
                     ? _buildErrorState()
                     : _question == null
