@@ -58,6 +58,8 @@ class AvatarHelper {
           width: radius * 2,
           height: radius * 2,
           fit: BoxFit.cover,
+          cacheWidth: (radius * 4).toInt(),
+          cacheHeight: (radius * 4).toInt(),
           errorBuilder: (_, __, ___) => CircleAvatar(
             radius: radius,
             backgroundColor: bgColor,
@@ -195,6 +197,8 @@ class AvatarHelper {
           width: size,
           height: size,
           fit: BoxFit.cover,
+          cacheWidth: (size * 2).toInt(),
+          cacheHeight: (size * 2).toInt(),
           errorBuilder: (_, __, ___) => Container(
             width: size,
             height: size,

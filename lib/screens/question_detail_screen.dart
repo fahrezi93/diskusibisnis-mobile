@@ -13,6 +13,7 @@ import '../models/tag.dart' as tag_model;
 import '../widgets/comment_section.dart';
 import '../widgets/vote_widget.dart';
 import '../widgets/skeleton_loading.dart';
+import '../utils/optimized_image.dart';
 
 class QuestionDetailScreen extends StatefulWidget {
   final String questionId;
@@ -597,47 +598,8 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
   }
 
   void _showFullImage(BuildContext context, String imageUrl) {
-    showDialog(
-      context: context,
-      builder: (context) => Dialog(
-        backgroundColor: Colors.transparent,
-        insetPadding: const EdgeInsets.all(10),
-        child: Stack(
-          children: [
-            GestureDetector(
-              onTap: () => Navigator.pop(context),
-              child: Container(
-                color: Colors.black.withValues(alpha: 0.9),
-                child: Center(
-                  child: InteractiveViewer(
-                    panEnabled: true,
-                    minScale: 0.5,
-                    maxScale: 4,
-                    child: Image.network(
-                      imageUrl,
-                      fit: BoxFit.contain,
-                      errorBuilder: (_, __, ___) => const Icon(
-                        Icons.broken_image,
-                        color: Colors.white54,
-                        size: 64,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            Positioned(
-              top: 10,
-              right: 10,
-              child: IconButton(
-                icon: const Icon(Icons.close, color: Colors.white, size: 30),
-                onPressed: () => Navigator.pop(context),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+    // Use FullScreenImageViewer for optimized full-screen viewing
+    FullScreenImageViewer.show(context, imageUrl);
   }
 
   void _showSnackBar(String message) {
@@ -1120,37 +1082,15 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
               }
               return Padding(
                 padding: const EdgeInsets.only(bottom: 12),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: GestureDetector(
-                    onTap: () => _showFullImage(context, imageUrl),
-                    child: Image.network(
-                      imageUrl,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                      loadingBuilder: (context, child, loadingProgress) {
-                        if (loadingProgress == null) return child;
-                        return Container(
-                          height: 200,
-                          color: const Color(0xFFF1F5F9),
-                          child: const Center(
-                            child: CircularProgressIndicator(
-                              color: Color(0xFF059669),
-                              strokeWidth: 2,
-                            ),
-                          ),
-                        );
-                      },
-                      errorBuilder: (_, __, ___) => Container(
-                        height: 100,
-                        color: const Color(0xFFF1F5F9),
-                        child: const Center(
-                          child: Icon(LucideIcons.imageOff,
-                              color: Color(0xFFCBD5E1)),
-                        ),
-                      ),
-                    ),
-                  ),
+                child: OptimizedImage(
+                  imageUrl: imageUrl,
+                  width: double.infinity,
+                  height: 200,
+                  fit: BoxFit.cover,
+                  borderRadius: 12,
+                  memCacheHeight: 600,
+                  maxDiskCacheWidth: 1080,
+                  onTap: () => _showFullImage(context, imageUrl),
                 ),
               );
             }),

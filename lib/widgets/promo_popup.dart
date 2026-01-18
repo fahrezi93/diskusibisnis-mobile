@@ -47,6 +47,11 @@ class PromoPopupDialog extends StatelessWidget {
                 child: CachedNetworkImage(
                   imageUrl: popup.imageUrl,
                   fit: BoxFit.contain,
+                  memCacheHeight: 1200,
+                  memCacheWidth: 800,
+                  maxWidthDiskCache: 1080,
+                  fadeInDuration: const Duration(milliseconds: 200),
+                  fadeOutDuration: const Duration(milliseconds: 100),
                   placeholder: (context, url) => Container(
                     color: Colors.grey[200],
                     child: const Center(

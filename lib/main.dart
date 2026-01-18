@@ -17,6 +17,7 @@ import 'screens/community_detail_screen.dart';
 import 'screens/notifications_screen.dart';
 import 'screens/ask_question_screen.dart';
 import 'screens/reset_password_screen.dart';
+import 'utils/image_cache_config.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -141,6 +142,9 @@ class _DiskusiBisnisAppState extends State<DiskusiBisnisApp> {
       _fcmService.initialize();
       _socketService.connect();
     }
+
+    // Initialize Image Cache for faster image loading
+    ImageCacheConfig.initialize();
 
     // Initialize Deep Linking in background
     _deepLinkService.initialize().then((_) {

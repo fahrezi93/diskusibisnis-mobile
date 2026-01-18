@@ -367,6 +367,9 @@ class _CommunityDetailScreenState extends State<CommunityDetailScreen> {
                                           width: 80,
                                           height: 80,
                                           fit: BoxFit.cover,
+                                          memCacheHeight: 240,
+                                          memCacheWidth: 240,
+                                          maxWidthDiskCache: 300,
                                           placeholder: (context, url) =>
                                               const Center(
                                             child: SizedBox(
